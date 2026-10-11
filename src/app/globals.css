@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+/* Mutfakta okunabilirlik: büyük taban yazı, yüksek kontrast, geniş dokunma alanları. */
+:root {
+  --background: #fffdf8;
+  --foreground: #1d1b16;
+  --muted: #5f5a4f;
+  --accent: #b5441b;
+  --accent-contrast: #ffffff;
+  --border: #e3ddd0;
+  --card: #ffffff;
+  --danger: #a1221b;
+  --ok: #2f6b2f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #15130f;
+    --foreground: #f3efe6;
+    --muted: #b8b0a0;
+    --accent: #f08a5d;
+    --accent-contrast: #15130f;
+    --border: #3a352c;
+    --card: #1e1b16;
+    --danger: #ff8a80;
+    --ok: #8fd18f;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-border: var(--border);
+  --color-card: var(--card);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+html {
+  font-size: 112.5%; /* 18px taban */
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@utility btn {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn border-accent bg-accent text-accent-contrast hover:opacity-90;
+}
+@utility btn-ghost {
+  @apply btn bg-transparent hover:bg-card;
+}
+@utility btn-danger {
+  @apply btn border-danger text-danger hover:bg-card;
+}
+@utility input {
+  @apply min-h-11 w-full rounded-lg border border-border bg-card px-3 py-2 text-foreground;
+}
+@utility card {
+  @apply rounded-xl border border-border bg-card p-4;
+}
+@utility sr-only-focusable {
+  &:not(:focus) {
+    @apply sr-only;
+  }
+}

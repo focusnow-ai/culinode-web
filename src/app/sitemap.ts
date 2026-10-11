@@ -1,0 +1,22 @@
+import type { MetadataRoute } from "next";
+import { serverPublicClient, unwrap } from "@/lib/api/client";
+
+export const dynamic = "force-dynamic";
+
+/** Yalnız yayınlanmış tarifler; sayfalı ve sınırlı (en fazla 10 sayfa × 50). */
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const site = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const entries: MetadataRoute.Sitemap = [{ url: `${site}/`, changeFrequency: "daily", priority: 1 }];
+  let continuation: string | undefined;
+  try {
+    for (let i = 0; i < 10; i++) {
+      const page = await unwrap(serverPublicClient().GET("/v1/public/recipes", { params: { query: { limit: 50, continuation } } }));
+      for (const r of page.items) entries.push({ url: `${site}/tarif/${r.id}`, lastModified: r.publishedAt });
+      if (!page.continuation) break;
+      continuation = page.continuation;
+    }
+  } catch {
+    // API erişilemezse yalnız ana sayfa
+  }
+  return entries;
+}

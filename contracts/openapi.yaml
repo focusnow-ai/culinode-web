@@ -1,0 +1,1273 @@
+openapi: 3.0.3
+info:
+  title: Culinode API
+  version: 1.0.0
+  description: |
+    Culinode MVP REST API. Tüm yollar `/v1` altındadır.
+
+    - Kimlik: `Authorization: Bearer <Firebase ID token>`. Kullanıcı kimliği yalnız
+      doğrulanmış token'dan alınır; gövdedeki kullanıcı alanları yok sayılır.
+    - Mutation'lar `operationId` (istemci üretir, retry boyunca sabit) ve güncellemelerde
+      `baseRevision` taşır. Aynı `operationId` aynı yükle tekrar gelirse ilk sonuç döner;
+      farklı yükle gelirse `operation-payload-mismatch` hatası döner.
+    - Zamanlar sunucu tarafından üretilen UTC ISO-8601 değerleridir.
+    - Hatalar `application/problem+json` (RFC 9457) ve kararlı `code` alanı taşır.
+    - Listeler `limit` + opak `continuation` ile sayfalanır; offset yoktur.
+servers:
+  - url: http://localhost:7071/api
+    description: Yerel Functions host
+tags:
+  - name: me
+  - name: recipes
+  - name: collections
+  - name: sync
+  - name: publishing
+  - name: public
+  - name: favorites
+  - name: discussions
+  - name: media
+  - name: notifications
+  - name: moderation
+  - name: system
+security:
+  - firebase: []
+paths:
+  /v1/health:
+    get:
+      tags: [system]
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Servis ayakta
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
+  /v1/me:
+    get:
+      tags: [me]
+      operationId: getMe
+      description: Profili okur; ilk çağrıda kullanıcı kaydı oluşturulur.
+      responses:
+        '200':
+          description: Profil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        default: { $ref: '#/components/responses/Problem' }
+    put:
+      tags: [me]
+      operationId: updateMe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileUpdate' }
+      responses:
+        '200':
+          description: Güncellenen profil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/me/export:
+    post:
+      tags: [me]
+      operationId: requestExport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OperationOnly' }
+      responses:
+        '202':
+          description: Dışa aktarma işi kabul edildi
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountJob' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/me/export/{jobId}:
+    get:
+      tags: [me]
+      operationId: getExport
+      parameters:
+        - { name: jobId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: İş durumu; hazırsa kısa süreli indirme bağlantısı
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountJob' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/me/deletion:
+    post:
+      tags: [me]
+      operationId: requestDeletion
+      description: |
+        Hesap silmeyi başlatır. Son 5 dakika içinde yapılmış giriş gerekir
+        (`recent-login-required`). Yazılar hemen durur, yayınlar kapanır, oturumlar iptal edilir.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OperationOnly' }
+      responses:
+        '202':
+          description: Silme işi başladı veya zaten sürüyor
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountJob' }
+        default: { $ref: '#/components/responses/Problem' }
+    get:
+      tags: [me]
+      operationId: getDeletion
+      responses:
+        '200':
+          description: Silme işi durumu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountJob' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /v1/recipes:
+    get:
+      tags: [recipes]
+      operationId: listRecipes
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Continuation'
+        - { name: q, in: query, schema: { type: string, maxLength: 80 }, description: "Ad/malzeme/etiket araması (normalize, içerir)" }
+        - { name: collectionId, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Kendi tariflerim
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecipePage' }
+        default: { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [recipes]
+      operationId: createRecipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecipeCreate' }
+      responses:
+        '201':
+          description: Oluşturulan tarif
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Recipe' }
+        '200':
+          description: Aynı operationId ile tekrar; ilk sonuç
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Recipe' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/recipes/{recipeId}:
+    parameters:
+      - $ref: '#/components/parameters/RecipeId'
+    get:
+      tags: [recipes]
+      operationId: getRecipe
+      responses:
+        '200':
+          description: Tarif
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Recipe' }
+        default: { $ref: '#/components/responses/Problem' }
+    put:
+      tags: [recipes]
+      operationId: updateRecipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecipeUpdate' }
+      responses:
+        '200':
+          description: Güncellenen tarif
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Recipe' }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [recipes]
+      operationId: deleteRecipe
+      description: Tarifi siler (tombstone). Yayındaysa önce yayından kaldırılması gerekir.
+      parameters:
+        - { name: operationId, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: baseRevision, in: query, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200':
+          description: Tombstone
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Recipe' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /v1/collections:
+    get:
+      tags: [collections]
+      operationId: listCollections
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Continuation'
+      responses:
+        '200':
+          description: Koleksiyonlar
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CollectionPage' }
+        default: { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [collections]
+      operationId: createCollection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CollectionCreate' }
+      responses:
+        '201':
+          description: Oluşturulan koleksiyon
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Collection' }
+        '200':
+          description: Tekrar
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Collection' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/collections/{collectionId}:
+    parameters:
+      - { name: collectionId, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      tags: [collections]
+      operationId: updateCollection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CollectionUpdate' }
+      responses:
+        '200':
+          description: Güncellenen koleksiyon
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Collection' }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [collections]
+      operationId: deleteCollection
+      parameters:
+        - { name: operationId, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: baseRevision, in: query, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200':
+          description: Tombstone
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Collection' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /v1/sync/push:
+    post:
+      tags: [sync]
+      operationId: syncPush
+      description: |
+        Mobil bekleyen işlemleri sırayla uygular. Her işlem ayrı atomik birimdir;
+        bir işlemin çakışması sonrakileri durdurmaz, aynı entity'nin sonraki işlemleri
+        `skipped` döner.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SyncPushRequest' }
+      responses:
+        '200':
+          description: İşlem sonuçları
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SyncPushResponse' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/sync/pull:
+    get:
+      tags: [sync]
+      operationId: syncPull
+      description: |
+        `cursor` yoksa tam snapshot başlar. Snapshot bittiğinde dönen cursor snapshot
+        başlangıç sırasıdır; sonraki pull aradaki değişiklikleri yeniden oynatır.
+        Süresi geçmiş cursor 410 `cursor-expired` döner.
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 100 } }
+      responses:
+        '200':
+          description: Değişiklik sayfası
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SyncPullResponse' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /v1/recipes/{recipeId}/publish:
+    parameters:
+      - $ref: '#/components/parameters/RecipeId'
+    post:
+      tags: [publishing]
+      operationId: publishRecipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublishRequest' }
+      responses:
+        '200':
+          description: Yayın durumu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Publication' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/recipes/{recipeId}/unpublish:
+    parameters:
+      - $ref: '#/components/parameters/RecipeId'
+    post:
+      tags: [publishing]
+      operationId: unpublishRecipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OperationOnly' }
+      responses:
+        '200':
+          description: Yayın durumu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Publication' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /v1/public/recipes:
+    get:
+      tags: [public]
+      operationId: listPublicRecipes
+      security: [{}, { firebase: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Continuation'
+        - { name: q, in: query, schema: { type: string, maxLength: 80 }, description: "Başlık araması (normalize, içerir)" }
+        - { name: tag, in: query, schema: { type: string, maxLength: 40 } }
+        - { name: ingredient, in: query, schema: { type: string, maxLength: 60 } }
+      responses:
+        '200':
+          description: Yeni yayınlanan tarifler
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicRecipePage' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/public/recipes/{recipeId}:
+    parameters:
+      - $ref: '#/components/parameters/RecipeId'
+    get:
+      tags: [public]
+      operationId: getPublicRecipe
+      security: [{}, { firebase: [] }]
+      responses:
+        '200':
+          description: Yayınlanmış tarif
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicRecipe' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/public/recipes/{recipeId}/media/{mediaId}:
+    parameters:
+      - $ref: '#/components/parameters/RecipeId'
+      - { name: mediaId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: variant, in: query, schema: { $ref: '#/components/schemas/MediaVariant' } }
+    get:
+      tags: [public]
+      operationId: getPublicRecipeMedia
+      security: []
+      description: Yayın durumu kontrol edilir; kısa ömürlü okuma bağlantısına 302 yönlendirir.
+      responses:
+        '302':
+          description: Kısa ömürlü görsel bağlantısı
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/public/recipes/{recipeId}/copy:
+    parameters:
+      - $ref: '#/components/parameters/RecipeId'
+    post:
+      tags: [public]
+      operationId: copyPublicRecipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OperationOnly' }
+      responses:
+        '201':
+          description: Deftere eklenen özel kopya
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Recipe' }
+        '200':
+          description: Tekrar
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Recipe' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/public/chefs/{userId}:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [public]
+      operationId: getPublicChef
+      security: [{}, { firebase: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Continuation'
+      responses:
+        '200':
+          description: Public şef profili ve tarifleri
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicChef' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /v1/favorites:
+    get:
+      tags: [favorites]
+      operationId: listFavorites
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Continuation'
+      responses:
+        '200':
+          description: Favoriler
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FavoritePage' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/favorites/{recipeId}:
+    parameters:
+      - $ref: '#/components/parameters/RecipeId'
+    put:
+      tags: [favorites]
+      operationId: addFavorite
+      responses:
+        '200':
+          description: Favori
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Favorite' }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [favorites]
+      operationId: removeFavorite
+      responses:
+        '204':
+          description: Kaldırıldı
+        default: { $ref: '#/components/responses/Problem' }
+
+  /v1/recipes/{recipeId}/discussions:
+    parameters:
+      - $ref: '#/components/parameters/RecipeId'
+    get:
+      tags: [discussions]
+      operationId: listDiscussions
+      security: [{}, { firebase: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Continuation'
+      responses:
+        '200':
+          description: Yayındaki tarifin tartışmaları (eskiden yeniye)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DiscussionPage' }
+        default: { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [discussions]
+      operationId: createDiscussion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DiscussionCreate' }
+      responses:
+        '201':
+          description: Oluşturulan yorum/soru/yanıt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Discussion' }
+        '200':
+          description: Tekrar
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Discussion' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/recipes/{recipeId}/discussions/{discussionId}:
+    parameters:
+      - $ref: '#/components/parameters/RecipeId'
+      - { name: discussionId, in: path, required: true, schema: { type: string } }
+    delete:
+      tags: [discussions]
+      operationId: deleteDiscussion
+      description: Yazar kendi girdisini kaldırır.
+      responses:
+        '204':
+          description: Kaldırıldı
+        default: { $ref: '#/components/responses/Problem' }
+
+  /v1/media/uploads:
+    post:
+      tags: [media]
+      operationId: createMediaUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MediaUploadRequest' }
+      responses:
+        '200':
+          description: Tek blob, kısa süreli, yalnız oluşturma yetkili yükleme bağlantısı
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaUploadGrant' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/media/{mediaId}/complete:
+    parameters:
+      - { name: mediaId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [media]
+      operationId: completeMediaUpload
+      responses:
+        '200':
+          description: İşleme kuyruğa alındı veya zaten tamamlandı
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Media' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/media/{mediaId}:
+    parameters:
+      - { name: mediaId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [media]
+      operationId: getMedia
+      responses:
+        '200':
+          description: Durum ve hazırsa kısa ömürlü okuma bağlantıları
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Media' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /v1/notifications:
+    get:
+      tags: [notifications]
+      operationId: listNotifications
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Continuation'
+      responses:
+        '200':
+          description: Bildirimler (yeniden eskiye)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPage' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/notifications/{notificationId}/read:
+    parameters:
+      - { name: notificationId, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [notifications]
+      operationId: markNotificationRead
+      responses:
+        '200':
+          description: Okundu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Notification' }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /v1/reports:
+    post:
+      tags: [moderation]
+      operationId: createReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReportCreate' }
+      responses:
+        '202':
+          description: Bildirim alındı
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/blocks:
+    get:
+      tags: [moderation]
+      operationId: listBlocks
+      responses:
+        '200':
+          description: Engellediğim hesaplar
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Block' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/blocks/{userId}:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: string } }
+    put:
+      tags: [moderation]
+      operationId: blockUser
+      responses:
+        '200':
+          description: Engellendi
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Block' }
+        default: { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [moderation]
+      operationId: unblockUser
+      responses:
+        '204':
+          description: Engel kaldırıldı
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/admin/reports:
+    get:
+      tags: [moderation]
+      operationId: adminListReports
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Continuation'
+        - { name: status, in: query, schema: { type: string, enum: [open, resolved], default: open } }
+      responses:
+        '200':
+          description: Moderatör rapor listesi
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportPage' }
+        default: { $ref: '#/components/responses/Problem' }
+  /v1/admin/actions:
+    post:
+      tags: [moderation]
+      operationId: adminAction
+      description: Yalnız sunucuda atanmış moderatörler. Son 5 dakika içinde giriş gerekir.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminAction' }
+      responses:
+        '200':
+          description: Uygulandı
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminActionResult' }
+        default: { $ref: '#/components/responses/Problem' }
+
+components:
+  securitySchemes:
+    firebase:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token (JWT)
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+    Continuation:
+      name: continuation
+      in: query
+      schema: { type: string, maxLength: 4096 }
+    RecipeId:
+      name: recipeId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Problem:
+      description: Hata (RFC 9457)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  schemas:
+    Health:
+      type: object
+      required: [status, version, environment]
+      properties:
+        status: { type: string }
+        version: { type: string }
+        environment: { type: string }
+
+    ErrorCode:
+      type: string
+      enum:
+        - validation
+        - unauthenticated
+        - forbidden
+        - not-found
+        - revision-conflict
+        - cursor-expired
+        - rate-limited
+        - operation-payload-mismatch
+        - recent-login-required
+        - account-restricted
+        - account-deleting
+        - blocked
+        - not-publishable
+        - media-not-ready
+        - copy-not-allowed
+        - unavailable
+        - payload-too-large
+        - internal
+    Problem:
+      type: object
+      required: [type, title, status, code, retryable]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string, nullable: true }
+        code: { $ref: '#/components/schemas/ErrorCode' }
+        retryable: { type: boolean, description: Aynı istek daha sonra tekrar denenebilir mi }
+        traceId: { type: string, nullable: true }
+        errors:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: array
+            items: { type: string }
+        currentRevision: { type: integer, format: int64, nullable: true, description: revision-conflict durumunda sunucudaki sürüm }
+        currentRecipe: { allOf: [{ $ref: '#/components/schemas/Recipe' }], nullable: true }
+        currentCollection: { allOf: [{ $ref: '#/components/schemas/Collection' }], nullable: true }
+
+    OperationOnly:
+      type: object
+      required: [operationId]
+      properties:
+        operationId: { type: string, format: uuid }
+
+    Profile:
+      type: object
+      required: [id, displayName, bio, providers, status, isModerator, createdAt, updatedAt, revision]
+      properties:
+        id: { type: string, description: Firebase UID }
+        displayName: { type: string }
+        bio: { type: string }
+        email: { type: string, nullable: true, description: Yalnız sahibine gösterilir }
+        providers:
+          type: array
+          items: { type: string, example: google.com }
+        status: { type: string, enum: [active, restricted, deleting] }
+        isModerator: { type: boolean }
+        revision: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProfileUpdate:
+      type: object
+      required: [displayName, bio]
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 60 }
+        bio: { type: string, maxLength: 500 }
+
+    AccountJob:
+      type: object
+      required: [id, kind, status, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [export, deletion] }
+        status: { type: string, enum: [pending, running, completed, failed] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        downloadUrl: { type: string, nullable: true, description: Export hazırsa kısa ömürlü bağlantı }
+        downloadUrlExpiresAt: { type: string, format: date-time, nullable: true }
+        steps:
+          type: array
+          items:
+            type: object
+            required: [name, done]
+            properties:
+              name: { type: string }
+              done: { type: boolean }
+
+    Quantity:
+      type: object
+      description: Yapılandırılmış miktar. `toTaste` true ise amount/unit boş olabilir ("gerektiği kadar").
+      required: [toTaste]
+      properties:
+        amount: { type: number, format: double, nullable: true, minimum: 0, maximum: 100000 }
+        unit: { $ref: '#/components/schemas/Unit' }
+        toTaste: { type: boolean }
+    Unit:
+      type: string
+      nullable: true
+      description: Kararlı birim kodu; UI yerelleştirir.
+      enum: [g, kg, mg, ml, l, tsp, tbsp, cup, piece, pinch, slice, clove, bunch, can, pack, cm, serving, portion, other, null]
+    Ingredient:
+      type: object
+      required: [id, name, quantity]
+      properties:
+        id: { type: string, format: uuid, description: Kararlı kimlik }
+        name: { type: string, maxLength: 120 }
+        quantity: { $ref: '#/components/schemas/Quantity' }
+        note: { type: string, nullable: true, maxLength: 200 }
+    Step:
+      type: object
+      required: [id, text]
+      properties:
+        id: { type: string, format: uuid }
+        text: { type: string, maxLength: 2000 }
+    RecipeYield:
+      type: object
+      properties:
+        amount: { type: number, format: double, nullable: true, minimum: 0, maximum: 10000 }
+        unit: { type: string, nullable: true, maxLength: 30, description: "porsiyon, adet, kg ..." }
+    RecipeContent:
+      type: object
+      description: Taslak eksik alanlarla kaydedilebilir; yayın ayrıca doğrulanır.
+      required: [title, ingredients, steps, tags]
+      properties:
+        title: { type: string, maxLength: 120 }
+        description: { type: string, nullable: true, maxLength: 2000 }
+        coverMediaId: { type: string, format: uuid, nullable: true }
+        yield: { $ref: '#/components/schemas/RecipeYield' }
+        prepMinutes: { type: integer, nullable: true, minimum: 0, maximum: 10080 }
+        cookMinutes: { type: integer, nullable: true, minimum: 0, maximum: 10080 }
+        ingredients:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/Ingredient' }
+        steps:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/Step' }
+        tags:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 40 }
+        privateNote: { type: string, nullable: true, maxLength: 5000, description: Hiçbir public çıktıya girmez }
+    RecipeSource:
+      type: object
+      required: [recipeId, authorId, authorDisplayName, publicRevision, copiedAt]
+      properties:
+        recipeId: { type: string }
+        authorId: { type: string, nullable: true }
+        authorDisplayName: { type: string }
+        publicRevision: { type: integer, format: int64 }
+        copiedAt: { type: string, format: date-time }
+    Publication:
+      type: object
+      description: Türetilmiş yayın bilgisi; otorite public belgedir.
+      required: [status, copyAllowed]
+      properties:
+        status: { type: string, enum: [unpublished, published] }
+        publishedRevision: { type: integer, format: int64, nullable: true, description: Yayınlanan taslak revision'ı }
+        publicRevision: { type: integer, format: int64, nullable: true }
+        publishedAt: { type: string, format: date-time, nullable: true }
+        copyAllowed: { type: boolean }
+    Recipe:
+      allOf:
+        - $ref: '#/components/schemas/RecipeContent'
+        - type: object
+          required: [id, revision, contentRevision, deleted, createdAt, updatedAt, schemaVersion, publication]
+          properties:
+            id: { type: string, format: uuid }
+            revision: { type: integer, format: int64, description: Her değişiklikte artar (yayın metadata'sı dahil) }
+            contentRevision:
+              type: integer
+              format: int64
+              description: |
+                Yalnız içerik değişince artar. Güncellemede baseRevision, [contentRevision, revision]
+                aralığındaysa içerik ezilmemiştir ve işlem kabul edilir.
+            deleted: { type: boolean }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            schemaVersion: { type: integer }
+            source: { allOf: [{ $ref: '#/components/schemas/RecipeSource' }], nullable: true }
+            publication: { $ref: '#/components/schemas/Publication' }
+    RecipeCreate:
+      type: object
+      required: [operationId, recipeId, content]
+      properties:
+        operationId: { type: string, format: uuid }
+        recipeId: { type: string, format: uuid, description: İstemci üretir (offline oluşturma için) }
+        content: { $ref: '#/components/schemas/RecipeContent' }
+    RecipeUpdate:
+      type: object
+      required: [operationId, baseRevision, content]
+      properties:
+        operationId: { type: string, format: uuid }
+        baseRevision: { type: integer, format: int64 }
+        content: { $ref: '#/components/schemas/RecipeContent' }
+    RecipePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Recipe' }
+        continuation: { type: string, nullable: true }
+
+    Collection:
+      type: object
+      required: [id, name, recipeIds, revision, deleted, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        recipeIds:
+          type: array
+          items: { type: string, format: uuid }
+        revision: { type: integer, format: int64 }
+        deleted: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CollectionContent:
+      type: object
+      required: [name, recipeIds]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        recipeIds:
+          type: array
+          maxItems: 500
+          items: { type: string, format: uuid }
+    CollectionCreate:
+      type: object
+      required: [operationId, collectionId, content]
+      properties:
+        operationId: { type: string, format: uuid }
+        collectionId: { type: string, format: uuid }
+        content: { $ref: '#/components/schemas/CollectionContent' }
+    CollectionUpdate:
+      type: object
+      required: [operationId, baseRevision, content]
+      properties:
+        operationId: { type: string, format: uuid }
+        baseRevision: { type: integer, format: int64 }
+        content: { $ref: '#/components/schemas/CollectionContent' }
+    CollectionPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Collection' }
+        continuation: { type: string, nullable: true }
+
+    SyncEntityType:
+      type: string
+      enum: [recipe, collection, profile, favorite, notification, media]
+    SyncOperation:
+      type: object
+      required: [operationId, entityType, entityId, kind, schemaVersion]
+      properties:
+        operationId: { type: string, format: uuid }
+        entityType: { type: string, enum: [recipe, collection] }
+        entityId: { type: string, format: uuid }
+        kind: { type: string, enum: [create, update, delete] }
+        baseRevision: { type: integer, format: int64, nullable: true, description: create için boş }
+        schemaVersion: { type: integer }
+        recipe: { allOf: [{ $ref: '#/components/schemas/RecipeContent' }], nullable: true }
+        collection: { allOf: [{ $ref: '#/components/schemas/CollectionContent' }], nullable: true }
+    SyncPushRequest:
+      type: object
+      required: [operations]
+      properties:
+        operations:
+          type: array
+          minItems: 1
+          maxItems: 25
+          items: { $ref: '#/components/schemas/SyncOperation' }
+    SyncOperationResult:
+      type: object
+      required: [operationId, status]
+      properties:
+        operationId: { type: string, format: uuid }
+        status: { type: string, enum: [applied, duplicate, conflict, rejected, skipped] }
+        revision: { type: integer, format: int64, nullable: true }
+        recipe: { allOf: [{ $ref: '#/components/schemas/Recipe' }], nullable: true }
+        collection: { allOf: [{ $ref: '#/components/schemas/Collection' }], nullable: true }
+        problem: { allOf: [{ $ref: '#/components/schemas/Problem' }], nullable: true }
+    SyncPushResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items: { $ref: '#/components/schemas/SyncOperationResult' }
+    SyncChange:
+      type: object
+      required: [entityType, entityId, deleted, revision]
+      properties:
+        seq: { type: integer, format: int64, nullable: true, description: Snapshot kayıtlarında boş }
+        entityType: { $ref: '#/components/schemas/SyncEntityType' }
+        entityId: { type: string }
+        deleted: { type: boolean }
+        revision: { type: integer, format: int64 }
+        recipe: { allOf: [{ $ref: '#/components/schemas/Recipe' }], nullable: true }
+        collection: { allOf: [{ $ref: '#/components/schemas/Collection' }], nullable: true }
+        profile: { allOf: [{ $ref: '#/components/schemas/Profile' }], nullable: true }
+        favorite: { allOf: [{ $ref: '#/components/schemas/Favorite' }], nullable: true }
+        notification: { allOf: [{ $ref: '#/components/schemas/Notification' }], nullable: true }
+        media: { allOf: [{ $ref: '#/components/schemas/Media' }], nullable: true }
+    SyncPullResponse:
+      type: object
+      required: [mode, changes, cursor, hasMore]
+      properties:
+        mode: { type: string, enum: [snapshot, incremental] }
+        changes:
+          type: array
+          items: { $ref: '#/components/schemas/SyncChange' }
+        cursor: { type: string, description: Opak; kullanıcıya bağlı }
+        hasMore: { type: boolean }
+
+    PublishRequest:
+      type: object
+      required: [operationId, revision, copyAllowed]
+      properties:
+        operationId: { type: string, format: uuid }
+        revision: { type: integer, format: int64, description: Yayınlanacak taslak revision'ı }
+        copyAllowed: { type: boolean }
+
+    Author:
+      type: object
+      required: [id, displayName]
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+    PublicMedia:
+      type: object
+      required: [id, thumbUrl, largeUrl]
+      properties:
+        id: { type: string }
+        thumbUrl: { type: string, description: API yolu; yayın durumunu kontrol edip kısa ömürlü bağlantıya yönlendirir }
+        largeUrl: { type: string }
+    PublicRecipeSummary:
+      type: object
+      required: [id, title, tags, author, publishedAt, publicRevision]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        cover: { allOf: [{ $ref: '#/components/schemas/PublicMedia' }], nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+        prepMinutes: { type: integer, nullable: true }
+        cookMinutes: { type: integer, nullable: true }
+        author: { $ref: '#/components/schemas/Author' }
+        publishedAt: { type: string, format: date-time }
+        publicRevision: { type: integer, format: int64 }
+    PublicRecipe:
+      allOf:
+        - $ref: '#/components/schemas/PublicRecipeSummary'
+        - type: object
+          required: [ingredients, steps, copyAllowed, updatedAt]
+          properties:
+            yield: { $ref: '#/components/schemas/RecipeYield' }
+            ingredients:
+              type: array
+              items: { $ref: '#/components/schemas/Ingredient' }
+            steps:
+              type: array
+              items: { $ref: '#/components/schemas/Step' }
+            copyAllowed: { type: boolean }
+            updatedAt: { type: string, format: date-time }
+            viewer:
+              type: object
+              nullable: true
+              description: Giriş yapmış görüntüleyene özgü alanlar
+              properties:
+                isFavorite: { type: boolean }
+                isAuthor: { type: boolean }
+    PublicRecipePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PublicRecipeSummary' }
+        continuation: { type: string, nullable: true }
+    PublicChef:
+      type: object
+      required: [id, displayName, bio, recipes]
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        bio: { type: string }
+        recipes: { $ref: '#/components/schemas/PublicRecipePage' }
+
+    Favorite:
+      type: object
+      required: [recipeId, createdAt, available]
+      properties:
+        recipeId: { type: string }
+        createdAt: { type: string, format: date-time }
+        available: { type: boolean, description: Yayından kalktıysa false }
+        recipe: { allOf: [{ $ref: '#/components/schemas/PublicRecipeSummary' }], nullable: true }
+    FavoritePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Favorite' }
+        continuation: { type: string, nullable: true }
+
+    Discussion:
+      type: object
+      required: [id, recipeId, kind, author, isRecipeOwner, body, createdAt, removed]
+      properties:
+        id: { type: string }
+        recipeId: { type: string }
+        kind: { type: string, enum: [comment, question, reply] }
+        parentId: { type: string, nullable: true }
+        author: { $ref: '#/components/schemas/Author' }
+        isRecipeOwner: { type: boolean }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+        removed: { type: boolean }
+    DiscussionCreate:
+      type: object
+      required: [operationId, kind, body]
+      properties:
+        operationId: { type: string, format: uuid }
+        kind: { type: string, enum: [comment, question, reply] }
+        parentId: { type: string, nullable: true, description: kind=reply için zorunlu; yalnız üst seviye girdi }
+        body: { type: string, minLength: 1, maxLength: 2000 }
+    DiscussionPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Discussion' }
+        continuation: { type: string, nullable: true }
+
+    MediaVariant:
+      type: string
+      enum: [thumb, large]
+      default: large
+    MediaUploadRequest:
+      type: object
+      required: [mediaId, contentType, sizeBytes]
+      properties:
+        mediaId: { type: string, format: uuid, description: İstemci üretir; tarif offline referans verebilir }
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        sizeBytes: { type: integer, minimum: 1, maximum: 10485760 }
+    MediaUploadGrant:
+      type: object
+      required: [mediaId, uploadUrl, method, headers, expiresAt]
+      properties:
+        mediaId: { type: string }
+        uploadUrl: { type: string }
+        method: { type: string, enum: [PUT] }
+        headers:
+          type: object
+          additionalProperties: { type: string }
+        expiresAt: { type: string, format: date-time }
+    Media:
+      type: object
+      required: [id, status, revision]
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [awaiting-upload, processing, ready, rejected] }
+        revision: { type: integer, format: int64 }
+        width: { type: integer, nullable: true }
+        height: { type: integer, nullable: true }
+        rejectReason: { type: string, nullable: true }
+        thumbUrl: { type: string, nullable: true, description: Kısa ömürlü }
+        largeUrl: { type: string, nullable: true, description: Kısa ömürlü }
+        urlsExpireAt: { type: string, format: date-time, nullable: true }
+
+    Notification:
+      type: object
+      required: [id, kind, recipeId, actor, createdAt, read]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [discussion-on-recipe, reply-to-discussion] }
+        recipeId: { type: string }
+        recipeTitle: { type: string, nullable: true }
+        discussionId: { type: string, nullable: true }
+        actor: { $ref: '#/components/schemas/Author' }
+        createdAt: { type: string, format: date-time }
+        read: { type: boolean }
+    NotificationPage:
+      type: object
+      required: [items, unreadCount]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Notification' }
+        continuation: { type: string, nullable: true }
+        unreadCount: { type: integer }
+
+    ReportCreate:
+      type: object
+      required: [operationId, targetType, targetId, reason]
+      properties:
+        operationId: { type: string, format: uuid }
+        targetType: { type: string, enum: [recipe, discussion, user] }
+        targetId: { type: string }
+        recipeId: { type: string, nullable: true, description: targetType=discussion için zorunlu }
+        reason: { type: string, enum: [spam, abuse, copyright, other] }
+        detail: { type: string, nullable: true, maxLength: 1000 }
+    Report:
+      type: object
+      required: [id, targetType, targetId, reason, status, createdAt]
+      properties:
+        id: { type: string }
+        targetType: { type: string }
+        targetId: { type: string }
+        recipeId: { type: string, nullable: true }
+        reason: { type: string }
+        detail: { type: string, nullable: true }
+        status: { type: string, enum: [open, resolved] }
+        createdAt: { type: string, format: date-time }
+        reporterId: { type: string, nullable: true, description: Yalnız moderatör görür }
+    ReportPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Report' }
+        continuation: { type: string, nullable: true }
+    Block:
+      type: object
+      required: [userId, createdAt]
+      properties:
+        userId: { type: string }
+        createdAt: { type: string, format: date-time }
+    AdminAction:
+      type: object
+      required: [operationId, action]
+      properties:
+        operationId: { type: string, format: uuid }
+        action: { type: string, enum: [remove-discussion, unpublish-recipe, restrict-user, unrestrict-user, resolve-report] }
+        recipeId: { type: string, nullable: true }
+        discussionId: { type: string, nullable: true }
+        userId: { type: string, nullable: true }
+        reportId: { type: string, nullable: true }
+        note: { type: string, nullable: true, maxLength: 500 }
+    AdminActionResult:
+      type: object
+      required: [action, applied]
+      properties:
+        action: { type: string }
+        applied: { type: boolean }

@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_API_BASE_URL: https://api.invalid
+      NEXT_PUBLIC_SITE_URL: https://culinode.invalid
+      NEXT_PUBLIC_FIREBASE_API_KEY: ci
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ci.firebaseapp.com
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: ci
+      NEXT_PUBLIC_FIREBASE_APP_ID: "1:0:web:0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Üretilen API tipleri sözleşme kopyasıyla güncel mi
+        run: |
+          npm run gen:api
+          git diff --exit-code src/lib/api/schema.d.ts
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
