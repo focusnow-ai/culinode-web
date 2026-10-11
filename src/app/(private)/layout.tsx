@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { RequireAuth } from "@/components/RequireAuth";
 
-// Özel ekranlar: indekslenmez, istemci tarafında token ile API'ye gider (SSR kullanıcı verisi yok).
+// Private screens: not indexed, call the API from the client with a token (no user data in SSR).
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default function PrivateLayout({ children }: { children: React.ReactNode }) {

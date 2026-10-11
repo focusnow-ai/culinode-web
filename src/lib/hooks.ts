@@ -12,7 +12,7 @@ function sameDeps(a: readonly unknown[], b: readonly unknown[]) {
   return a.length === b.length && a.every((x, i) => Object.is(x, b[i]));
 }
 
-/** Yükleniyor / hata / hazır durumlarını tek yerde yönetir; bağımlılık değişince yeniden yükler. */
+/** Manages loading / error / ready states in one place; reloads when dependencies change. */
 export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]) {
   const [nonce, setNonce] = useState(0);
   const key = [...deps, nonce];

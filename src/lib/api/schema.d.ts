@@ -27,7 +27,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Profili okur; ilk çağrıda kullanıcı kaydı oluşturulur. */
+        /** @description Reads the profile; the user record is created on the first call. */
         get: operations["getMe"];
         put: operations["updateMe"];
         post?: never;
@@ -79,8 +79,8 @@ export interface paths {
         get: operations["getDeletion"];
         put?: never;
         /**
-         * @description Hesap silmeyi başlatır. Son 5 dakika içinde yapılmış giriş gerekir
-         *     (`recent-login-required`). Yazılar hemen durur, yayınlar kapanır, oturumlar iptal edilir.
+         * @description Starts account deletion. Requires a sign-in within the last 5 minutes
+         *     (`recent-login-required`). Writes stop immediately, publications close and sessions are revoked.
          */
         post: operations["requestDeletion"];
         delete?: never;
@@ -117,7 +117,7 @@ export interface paths {
         get: operations["getRecipe"];
         put: operations["updateRecipe"];
         post?: never;
-        /** @description Tarifi siler (tombstone). Yayındaysa önce yayından kaldırılması gerekir. */
+        /** @description Deletes the recipe (tombstone). If it is published it is unpublished first. */
         delete: operations["deleteRecipe"];
         options?: never;
         head?: never;
@@ -168,9 +168,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Mobil bekleyen işlemleri sırayla uygular. Her işlem ayrı atomik birimdir;
-         *     bir işlemin çakışması sonrakileri durdurmaz, aynı entity'nin sonraki işlemleri
-         *     `skipped` döner.
+         * @description Applies pending mobile operations in order. Each operation is its own atomic unit;
+         *     a conflict on one does not stop the others, but later operations on the same entity
+         *     return `skipped`.
          */
         post: operations["syncPush"];
         delete?: never;
@@ -187,9 +187,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description `cursor` yoksa tam snapshot başlar. Snapshot bittiğinde dönen cursor snapshot
-         *     başlangıç sırasıdır; sonraki pull aradaki değişiklikleri yeniden oynatır.
-         *     Süresi geçmiş cursor 410 `cursor-expired` döner.
+         * @description Without a `cursor` a full snapshot starts. The cursor returned when the snapshot ends is the
+         *     snapshot's starting sequence; the next pull replays the changes made in between.
+         *     An expired cursor returns 410 `cursor-expired`.
          */
         get: operations["syncPull"];
         put?: never;
@@ -282,7 +282,7 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** @description Yayın durumu kontrol edilir; kısa ömürlü okuma bağlantısına 302 yönlendirir. */
+        /** @description Checks the publication status and redirects (302) to a short-lived read link. */
         get: operations["getPublicRecipeMedia"];
         put?: never;
         post?: never;
@@ -393,7 +393,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** @description Yazar kendi girdisini kaldırır. */
+        /** @description The author removes their own entry. */
         delete: operations["deleteDiscussion"];
         options?: never;
         head?: never;
@@ -561,7 +561,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Yalnız sunucuda atanmış moderatörler. Son 5 dakika içinde giriş gerekir. */
+        /** @description Server-assigned moderators only. Requires a sign-in within the last 5 minutes. */
         post: operations["adminAction"];
         delete?: never;
         options?: never;
@@ -586,7 +586,7 @@ export interface components {
             status: number;
             detail?: string | null;
             code: components["schemas"]["ErrorCode"];
-            /** @description Aynı istek daha sonra tekrar denenebilir mi */
+            /** @description Whether the same request can be retried later */
             retryable: boolean;
             traceId?: string | null;
             errors?: {
@@ -594,7 +594,7 @@ export interface components {
             } | null;
             /**
              * Format: int64
-             * @description revision-conflict durumunda sunucudaki sürüm
+             * @description The server's revision on revision-conflict
              */
             currentRevision?: number | null;
             currentRecipe?: components["schemas"]["Recipe"] | null;
@@ -609,7 +609,7 @@ export interface components {
             id: string;
             displayName: string;
             bio: string;
-            /** @description Yalnız sahibine gösterilir */
+            /** @description Shown only to the owner */
             email?: string | null;
             providers: string[];
             /** @enum {string} */
@@ -636,7 +636,7 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
-            /** @description Export hazırsa kısa ömürlü bağlantı */
+            /** @description Short-lived link when the export is ready */
             downloadUrl?: string | null;
             /** Format: date-time */
             downloadUrlExpiresAt?: string | null;
@@ -645,7 +645,7 @@ export interface components {
                 done: boolean;
             }[];
         };
-        /** @description Yapılandırılmış miktar. `toTaste` true ise amount/unit boş olabilir ("gerektiği kadar"). */
+        /** @description Structured quantity. When `toTaste` is true, amount/unit may be empty ("to taste"). */
         Quantity: {
             /** Format: double */
             amount?: number | null;
@@ -653,14 +653,14 @@ export interface components {
             toTaste: boolean;
         };
         /**
-         * @description Kararlı birim kodu; UI yerelleştirir.
+         * @description Stable unit code; the UI localizes it.
          * @enum {string|null}
          */
         Unit: "g" | "kg" | "mg" | "ml" | "l" | "tsp" | "tbsp" | "cup" | "piece" | "pinch" | "slice" | "clove" | "bunch" | "can" | "pack" | "cm" | "serving" | "portion" | "other" | null;
         Ingredient: {
             /**
              * Format: uuid
-             * @description Kararlı kimlik
+             * @description Stable id
              */
             id: string;
             name: string;
@@ -675,10 +675,10 @@ export interface components {
         RecipeYield: {
             /** Format: double */
             amount?: number | null;
-            /** @description porsiyon, adet, kg ... */
+            /** @description servings, pieces, kg ... */
             unit?: string | null;
         };
-        /** @description Taslak eksik alanlarla kaydedilebilir; yayın ayrıca doğrulanır. */
+        /** @description A draft may be saved with missing fields; publishing is validated separately. */
         RecipeContent: {
             title: string;
             description?: string | null;
@@ -690,7 +690,7 @@ export interface components {
             ingredients: components["schemas"]["Ingredient"][];
             steps: components["schemas"]["Step"][];
             tags: string[];
-            /** @description Hiçbir public çıktıya girmez */
+            /** @description Never included in any public output */
             privateNote?: string | null;
         };
         RecipeSource: {
@@ -702,13 +702,13 @@ export interface components {
             /** Format: date-time */
             copiedAt: string;
         };
-        /** @description Türetilmiş yayın bilgisi; otorite public belgedir. */
+        /** @description Derived publication info; the public document is the authority. */
         Publication: {
             /** @enum {string} */
             status: "unpublished" | "published";
             /**
              * Format: int64
-             * @description Yayınlanan taslak revision'ı
+             * @description Revision of the published draft
              */
             publishedRevision?: number | null;
             /** Format: int64 */
@@ -722,13 +722,13 @@ export interface components {
             id: string;
             /**
              * Format: int64
-             * @description Her değişiklikte artar (yayın metadata'sı dahil)
+             * @description Incremented on every change (including publication metadata)
              */
             revision: number;
             /**
              * Format: int64
-             * @description Yalnız içerik değişince artar. Güncellemede baseRevision, [contentRevision, revision]
-             *     aralığındaysa içerik ezilmemiştir ve işlem kabul edilir.
+             * @description Incremented only when content changes. If an update's baseRevision is within
+             *     [contentRevision, revision], no content was overwritten and the update is accepted.
              */
             contentRevision: number;
             deleted: boolean;
@@ -745,7 +745,7 @@ export interface components {
             operationId: string;
             /**
              * Format: uuid
-             * @description İstemci üretir (offline oluşturma için)
+             * @description Generated by the client (for offline creation)
              */
             recipeId: string;
             content: components["schemas"]["RecipeContent"];
@@ -809,7 +809,7 @@ export interface components {
             kind: "create" | "update" | "delete";
             /**
              * Format: int64
-             * @description create için boş
+             * @description Empty for create
              */
             baseRevision?: number | null;
             schemaVersion: number;
@@ -836,7 +836,7 @@ export interface components {
         SyncChange: {
             /**
              * Format: int64
-             * @description Snapshot kayıtlarında boş
+             * @description Empty for snapshot records
              */
             seq?: number | null;
             entityType: components["schemas"]["SyncEntityType"];
@@ -855,7 +855,7 @@ export interface components {
             /** @enum {string} */
             mode: "snapshot" | "incremental";
             changes: components["schemas"]["SyncChange"][];
-            /** @description Opak; kullanıcıya bağlı */
+            /** @description Opaque; bound to the user */
             cursor: string;
             hasMore: boolean;
         };
@@ -864,7 +864,7 @@ export interface components {
             operationId: string;
             /**
              * Format: int64
-             * @description Yayınlanacak taslak revision'ı
+             * @description Revision of the draft to publish
              */
             revision: number;
             copyAllowed: boolean;
@@ -875,7 +875,7 @@ export interface components {
         };
         PublicMedia: {
             id: string;
-            /** @description API yolu; yayın durumunu kontrol edip kısa ömürlü bağlantıya yönlendirir */
+            /** @description API path; checks the publication status and redirects to a short-lived link */
             thumbUrl: string;
             largeUrl: string;
         };
@@ -900,7 +900,7 @@ export interface components {
             copyAllowed: boolean;
             /** Format: date-time */
             updatedAt: string;
-            /** @description Giriş yapmış görüntüleyene özgü alanlar */
+            /** @description Fields specific to the signed-in viewer */
             viewer?: {
                 isFavorite?: boolean;
                 isAuthor?: boolean;
@@ -920,7 +920,7 @@ export interface components {
             recipeId: string;
             /** Format: date-time */
             createdAt: string;
-            /** @description Yayından kalktıysa false */
+            /** @description false if unpublished */
             available: boolean;
             recipe?: components["schemas"]["PublicRecipeSummary"] | null;
         };
@@ -946,7 +946,7 @@ export interface components {
             operationId: string;
             /** @enum {string} */
             kind: "comment" | "question" | "reply";
-            /** @description kind=reply için zorunlu; yalnız üst seviye girdi */
+            /** @description Required for kind=reply; top-level entries only */
             parentId?: string | null;
             body: string;
         };
@@ -962,7 +962,7 @@ export interface components {
         MediaUploadRequest: {
             /**
              * Format: uuid
-             * @description İstemci üretir; tarif offline referans verebilir
+             * @description Generated by the client; a recipe can reference it offline
              */
             mediaId: string;
             /** @enum {string} */
@@ -989,9 +989,9 @@ export interface components {
             width?: number | null;
             height?: number | null;
             rejectReason?: string | null;
-            /** @description Kısa ömürlü */
+            /** @description Short-lived */
             thumbUrl?: string | null;
-            /** @description Kısa ömürlü */
+            /** @description Short-lived */
             largeUrl?: string | null;
             /** Format: date-time */
             urlsExpireAt?: string | null;
@@ -1019,7 +1019,7 @@ export interface components {
             /** @enum {string} */
             targetType: "recipe" | "discussion" | "user";
             targetId: string;
-            /** @description targetType=discussion için zorunlu */
+            /** @description Required for targetType=discussion */
             recipeId?: string | null;
             /** @enum {string} */
             reason: "spam" | "abuse" | "copyright" | "other";
@@ -1036,7 +1036,7 @@ export interface components {
             status: "open" | "resolved";
             /** Format: date-time */
             createdAt: string;
-            /** @description Yalnız moderatör görür */
+            /** @description Visible to moderators only */
             reporterId?: string | null;
         };
         ReportPage: {
@@ -1065,7 +1065,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description Hata (RFC 9457) */
+        /** @description Error (RFC 9457) */
         Problem: {
             headers: {
                 [name: string]: unknown;
@@ -1095,7 +1095,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Servis ayakta */
+            /** @description Service is up */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1115,7 +1115,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Profil */
+            /** @description Profile */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1140,7 +1140,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Güncellenen profil */
+            /** @description Updated profile */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1165,7 +1165,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Dışa aktarma işi kabul edildi */
+            /** @description Export job accepted */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -1188,7 +1188,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description İş durumu; hazırsa kısa süreli indirme bağlantısı */
+            /** @description Job status; a short-lived download link when ready */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1209,7 +1209,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Silme işi durumu */
+            /** @description Deletion job status */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1234,7 +1234,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Silme işi başladı veya zaten sürüyor */
+            /** @description Deletion job started or already running */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -1251,7 +1251,7 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 continuation?: components["parameters"]["Continuation"];
-                /** @description Ad/malzeme/etiket araması (normalize, içerir) */
+                /** @description Search by title/ingredient/tag (normalized, contains) */
                 q?: string;
                 collectionId?: string;
             };
@@ -1261,7 +1261,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Kendi tariflerim */
+            /** @description My recipes */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1286,7 +1286,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Aynı operationId ile tekrar; ilk sonuç */
+            /** @description Retry with the same operationId; the first result */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1295,7 +1295,7 @@ export interface operations {
                     "application/json": components["schemas"]["Recipe"];
                 };
             };
-            /** @description Oluşturulan tarif */
+            /** @description Created recipe */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -1318,7 +1318,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Tarif */
+            /** @description Recipe */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1345,7 +1345,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Güncellenen tarif */
+            /** @description Updated recipe */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1395,7 +1395,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Koleksiyonlar */
+            /** @description Collections */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1420,7 +1420,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Tekrar */
+            /** @description Retry */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1429,7 +1429,7 @@ export interface operations {
                     "application/json": components["schemas"]["Collection"];
                 };
             };
-            /** @description Oluşturulan koleksiyon */
+            /** @description Created collection */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -1456,7 +1456,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Güncellenen koleksiyon */
+            /** @description Updated collection */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1507,7 +1507,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description İşlem sonuçları */
+            /** @description Operation results */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1531,7 +1531,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Değişiklik sayfası */
+            /** @description Page of changes */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1558,7 +1558,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Yayın durumu */
+            /** @description Publication status */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1585,7 +1585,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Yayın durumu */
+            /** @description Publication status */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1602,7 +1602,7 @@ export interface operations {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 continuation?: components["parameters"]["Continuation"];
-                /** @description Başlık araması (normalize, içerir) */
+                /** @description Title search (normalized, contains) */
                 q?: string;
                 tag?: string;
                 ingredient?: string;
@@ -1613,7 +1613,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Yeni yayınlanan tarifler */
+            /** @description Recently published recipes */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1636,7 +1636,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Yayınlanmış tarif */
+            /** @description Published recipe */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1662,7 +1662,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Kısa ömürlü görsel bağlantısı */
+            /** @description Short-lived image link */
             302: {
                 headers: {
                     [name: string]: unknown;
@@ -1687,7 +1687,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Tekrar */
+            /** @description Retry */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1696,7 +1696,7 @@ export interface operations {
                     "application/json": components["schemas"]["Recipe"];
                 };
             };
-            /** @description Deftere eklenen özel kopya */
+            /** @description Private copy added to the recipe book */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -1722,7 +1722,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Public şef profili ve tarifleri */
+            /** @description Public chef profile and recipes */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1746,7 +1746,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Favoriler */
+            /** @description Favorites */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1769,7 +1769,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Favori */
+            /** @description Favorite */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1792,7 +1792,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Kaldırıldı */
+            /** @description Removed */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -1816,7 +1816,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Yayındaki tarifin tartışmaları (eskiden yeniye) */
+            /** @description Discussions on a published recipe (oldest first) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1843,7 +1843,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Tekrar */
+            /** @description Retry */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1852,7 +1852,7 @@ export interface operations {
                     "application/json": components["schemas"]["Discussion"];
                 };
             };
-            /** @description Oluşturulan yorum/soru/yanıt */
+            /** @description Created comment/question/reply */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -1876,7 +1876,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Kaldırıldı */
+            /** @description Removed */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -1899,7 +1899,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Tek blob, kısa süreli, yalnız oluşturma yetkili yükleme bağlantısı */
+            /** @description Single-blob, short-lived, create-only upload link */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1922,7 +1922,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description İşleme kuyruğa alındı veya zaten tamamlandı */
+            /** @description Processing queued or already completed */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1945,7 +1945,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Durum ve hazırsa kısa ömürlü okuma bağlantıları */
+            /** @description Status and, when ready, short-lived read links */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1969,7 +1969,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Bildirimler (yeniden eskiye) */
+            /** @description Notifications (newest first) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1992,7 +1992,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Okundu */
+            /** @description Marked as read */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2017,7 +2017,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Bildirim alındı */
+            /** @description Report received */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -2038,7 +2038,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Engellediğim hesaplar */
+            /** @description Accounts I have blocked */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2063,7 +2063,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Engellendi */
+            /** @description Blocked */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2086,7 +2086,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Engel kaldırıldı */
+            /** @description Unblocked */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -2109,7 +2109,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Moderatör rapor listesi */
+            /** @description Moderator report list */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2134,7 +2134,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Uygulandı */
+            /** @description Applied */
             200: {
                 headers: {
                     [name: string]: unknown;

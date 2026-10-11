@@ -18,7 +18,7 @@ export type Ingredient = Schemas["Ingredient"];
 export type Step = Schemas["Step"];
 export type Unit = NonNullable<Schemas["Unit"]>;
 
-/** API hatası: Problem Details + ağ hatası ayrımı. */
+/** API error: distinguishes Problem Details from network failures. */
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -35,18 +35,18 @@ export class ApiError extends Error {
   }
 }
 
-/** Ağ kopması (fetch reddedildi) → status 0. Sahte başarı yok. */
+/** Network drop (fetch rejected) → status 0. Never a fake success. */
 const safeFetch: typeof fetch = async (input, init) => {
   try {
     return await fetch(input, init);
   } catch (e) {
-    throw new ApiError(0, null, e instanceof Error ? `Sunucuya ulaşılamadı: ${e.message}` : "Sunucuya ulaşılamadı");
+    throw new ApiError(0, null, e instanceof Error ? `Could not reach the server: ${e.message}` : "Could not reach the server");
   }
 };
 
 /**
- * Sunucu tarafı (SSR) public istemci: yalnız public veri, her istek taze (no-store),
- * kullanıcı verisi ve token taşımaz.
+ * Server-side (SSR) public client: public data only, fresh on every request (no-store),
+ * never carries user data or tokens.
  */
 export function serverPublicClient() {
   return createClient<paths>({
@@ -55,7 +55,7 @@ export function serverPublicClient() {
   });
 }
 
-/** Tarayıcı istemcisi: Firebase ID token'ı her isteğe eklenir. Private yanıtlar cache'lenmez. */
+/** Browser client: the Firebase ID token is added to every request. Private responses are not cached. */
 export function browserClient(getToken: () => Promise<string | null>) {
   const client = createClient<paths>({ baseUrl: `${config.apiBaseUrl}/api`, fetch: safeFetch, cache: "no-store" });
   client.use({
@@ -70,7 +70,7 @@ export function browserClient(getToken: () => Promise<string | null>) {
 
 export type BrowserClient = ReturnType<typeof browserClient>;
 
-/** openapi-fetch sonucunu açar: hata varsa ApiError fırlatır. */
+/** Unwraps an openapi-fetch result: throws ApiError on error. */
 export async function unwrap<T>(
   p: Promise<{ data?: T; error?: unknown; response: Response }>,
 ): Promise<T> {
@@ -86,7 +86,7 @@ export function newId(): string {
   return crypto.randomUUID();
 }
 
-/** Public medya yolu API köküne göre çözülür. */
+/** Resolves a public media path against the API root. */
 export function apiUrl(path: string): string {
   if (/^https?:\/\//.test(path)) return path;
   return `${config.apiBaseUrl}${path}`;

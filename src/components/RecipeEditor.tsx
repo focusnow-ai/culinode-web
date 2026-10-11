@@ -7,7 +7,7 @@ import {
   type Collection, type Ingredient, type Media, type Recipe, type RecipeContent, type Step, type Unit,
 } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
-import { problemMessage, tr, unitLabels } from "@/lib/i18n";
+import { problemMessage, t, unitLabels } from "@/lib/i18n";
 import { PublishPanel } from "./PublishPanel";
 
 const emptyContent = (): RecipeContent => ({
@@ -40,8 +40,8 @@ type SaveState =
   | { kind: "conflict"; remote: Recipe };
 
 /**
- * Web tarif editörü: tamamen online. Kayıt yalnız sunucu onayıyla başarılıdır. Ağ kaybında metin
- * bellekte korunur ve "Kaydedilmedi" gösterilir; otomatik offline kuyruk/replay yoktur.
+ * Web recipe editor: fully online. A save only succeeds once the server confirms it. If the network drops,
+ * the text is kept in memory and "Not saved" is shown; there is no automatic offline queue/replay.
  */
 export function RecipeEditor({ initial }: { initial: Recipe | null }) {
   const { api } = useAuth();
@@ -50,7 +50,7 @@ export function RecipeEditor({ initial }: { initial: Recipe | null }) {
   const [content, setContent] = useState<RecipeContent>(() => (initial ? contentOf(initial) : emptyContent()));
   const [save, setSave] = useState<SaveState>({ kind: "clean" });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
-  // Aynı içerik için retry boyunca sabit operationId; içerik değişince yenilenir.
+  // Stable operationId across retries for the same content; renewed when the content changes.
   const opRef = useRef<{ id: string; snapshot: string } | null>(null);
   const recipeIdRef = useRef<string>(initial?.id ?? newId());
   const isCopy = !!recipe?.source;
@@ -88,7 +88,7 @@ export function RecipeEditor({ initial }: { initial: Recipe | null }) {
       opRef.current = null;
       setRecipe(saved);
       setSave({ kind: "saved" });
-      if (!recipe) router.replace(`/defter/${saved.id}`);
+      if (!recipe) router.replace(`/notebook/${saved.id}`);
     } catch (e) {
       if (e instanceof ApiError && e.code === "revision-conflict" && e.problem?.currentRecipe) {
         setSave({ kind: "conflict", remote: e.problem.currentRecipe });
@@ -102,15 +102,15 @@ export function RecipeEditor({ initial }: { initial: Recipe | null }) {
   async function keepLocalAsNew() {
     const op = newId();
     const id = newId();
-    const created = await unwrap(api.POST("/v1/recipes", { body: { operationId: op, recipeId: id, content: { ...content, title: `${content.title} (benim sürümüm)` } } }));
-    router.push(`/defter/${created.id}`);
+    const created = await unwrap(api.POST("/v1/recipes", { body: { operationId: op, recipeId: id, content: { ...content, title: `${content.title} (my version)` } } }));
+    router.push(`/notebook/${created.id}`);
   }
 
   async function remove() {
-    if (!recipe || !confirm("Bu tarif silinsin mi? Yayındaysa yayından da kaldırılır.")) return;
+    if (!recipe || !confirm("Delete this recipe? If it is published, it will be unpublished too.")) return;
     try {
       await unwrap(api.DELETE("/v1/recipes/{recipeId}", { params: { path: { recipeId: recipe.id }, query: { operationId: newId(), baseRevision: recipe.revision } } }));
-      router.push("/defter");
+      router.push("/notebook");
     } catch (e) {
       if (e instanceof ApiError && e.code === "revision-conflict" && e.problem?.currentRecipe) {
         setSave({ kind: "conflict", remote: e.problem.currentRecipe });
@@ -125,10 +125,10 @@ export function RecipeEditor({ initial }: { initial: Recipe | null }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
-        <h1 className="flex-1 font-[family-name:var(--font-display)] text-2xl font-bold">{recipe ? "Tarifi düzenle" : "Yeni tarif"}</h1>
+        <h1 className="flex-1 font-[family-name:var(--font-display)] text-2xl font-bold">{recipe ? "Edit recipe" : "New recipe"}</h1>
         <SaveIndicator state={save} />
         <button type="button" className="btn-primary" disabled={save.kind === "saving" || save.kind === "clean" || save.kind === "saved"} onClick={() => doSave()}>
-          {save.kind === "saving" ? tr.recipe.saving : tr.recipe.save}
+          {save.kind === "saving" ? t.recipe.saving : t.recipe.save}
         </button>
       </div>
 
@@ -148,29 +148,29 @@ export function RecipeEditor({ initial }: { initial: Recipe | null }) {
 
       {recipe?.source ? (
         <p className="card text-sm">
-          {tr.recipe.copiedFrom}: <strong>{recipe.source.authorDisplayName}</strong> — bu bağımsız, özel bir kopyadır.
+          {t.recipe.copiedFrom}: <strong>{recipe.source.authorDisplayName}</strong> — this is an independent private copy.
         </p>
       ) : null}
 
       <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); doSave(); }} noValidate>
-        <Field label={tr.recipe.title} error={err("title")}>
+        <Field label={t.recipe.title} error={err("title")}>
           <input className="input text-xl" value={content.title} maxLength={120} onChange={(e) => update({ title: e.target.value })} />
         </Field>
-        <Field label={tr.recipe.description} error={err("description")}>
+        <Field label={t.recipe.description} error={err("description")}>
           <textarea className="input min-h-20" value={content.description ?? ""} maxLength={2000} onChange={(e) => update({ description: e.target.value || null })} />
         </Field>
         <CoverPicker mediaId={content.coverMediaId ?? null} onChange={(id) => update({ coverMediaId: id })} />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Field label="Porsiyon" error={err("yield.amount")}>
+          <Field label="Servings" error={err("yield.amount")}>
             <input className="input" type="number" min={0} inputMode="decimal" value={content.yield?.amount ?? ""} onChange={(e) => update({ yield: { ...content.yield, amount: e.target.value === "" ? null : Number(e.target.value) } })} />
           </Field>
-          <Field label="Birim">
-            <input className="input" value={content.yield?.unit ?? ""} maxLength={30} placeholder="porsiyon" onChange={(e) => update({ yield: { ...content.yield, unit: e.target.value || null } })} />
+          <Field label="Unit">
+            <input className="input" value={content.yield?.unit ?? ""} maxLength={30} placeholder="servings" onChange={(e) => update({ yield: { ...content.yield, unit: e.target.value || null } })} />
           </Field>
-          <Field label={tr.recipe.prep} error={err("prepMinutes")}>
+          <Field label={t.recipe.prep} error={err("prepMinutes")}>
             <input className="input" type="number" min={0} inputMode="numeric" value={content.prepMinutes ?? ""} onChange={(e) => update({ prepMinutes: e.target.value === "" ? null : Number(e.target.value) })} />
           </Field>
-          <Field label={tr.recipe.cook} error={err("cookMinutes")}>
+          <Field label={t.recipe.cook} error={err("cookMinutes")}>
             <input className="input" type="number" min={0} inputMode="numeric" value={content.cookMinutes ?? ""} onChange={(e) => update({ cookMinutes: e.target.value === "" ? null : Number(e.target.value) })} />
           </Field>
         </div>
@@ -178,10 +178,10 @@ export function RecipeEditor({ initial }: { initial: Recipe | null }) {
         <IngredientsEditor items={content.ingredients} errors={fieldErrors} onChange={(ingredients) => update({ ingredients })} />
         <StepsEditor items={content.steps} errors={fieldErrors} onChange={(steps) => update({ steps })} />
 
-        <Field label={`${tr.recipe.tags} (virgülle ayırın)`} error={err("tags")}>
+        <Field label={`${t.recipe.tags} (comma separated)`} error={err("tags")}>
           <TagsInput value={content.tags} onChange={(tags) => update({ tags })} />
         </Field>
-        <Field label={tr.recipe.privateNote} error={err("privateNote")}>
+        <Field label={t.recipe.privateNote} error={err("privateNote")}>
           <textarea className="input min-h-20" value={content.privateNote ?? ""} maxLength={5000} onChange={(e) => update({ privateNote: e.target.value || null })} />
         </Field>
       </form>
@@ -190,11 +190,11 @@ export function RecipeEditor({ initial }: { initial: Recipe | null }) {
         <>
           <CollectionMembership recipeId={recipe.id} />
           {isCopy ? (
-            <p className="card text-sm text-muted">{tr.publish.copyNotRepublishable}</p>
+            <p className="card text-sm text-muted">{t.publish.copyNotRepublishable}</p>
           ) : (
             <PublishPanel recipe={recipe} dirty={dirty} onChanged={setRecipe} />
           )}
-          <button type="button" className="btn-danger self-start" onClick={remove}>{tr.recipe.delete}</button>
+          <button type="button" className="btn-danger self-start" onClick={remove}>{t.recipe.delete}</button>
         </>
       ) : null}
     </div>
@@ -203,11 +203,11 @@ export function RecipeEditor({ initial }: { initial: Recipe | null }) {
 
 function SaveIndicator({ state }: { state: SaveState }) {
   const text =
-    state.kind === "saving" ? tr.recipe.saving
-    : state.kind === "saved" ? tr.recipe.saved
-    : state.kind === "dirty" ? tr.recipe.unsaved
-    : state.kind === "error" ? `${tr.recipe.unsaved}: ${state.message}`
-    : state.kind === "conflict" ? tr.conflict.title
+    state.kind === "saving" ? t.recipe.saving
+    : state.kind === "saved" ? t.recipe.saved
+    : state.kind === "dirty" ? t.recipe.unsaved
+    : state.kind === "error" ? `${t.recipe.unsaved}: ${state.message}`
+    : state.kind === "conflict" ? t.conflict.title
     : "";
   const tone = state.kind === "saved" ? "text-ok" : state.kind === "error" || state.kind === "conflict" ? "text-danger" : "text-muted";
   return <span role="status" aria-live="polite" className={`text-sm ${tone}`}>{text}</span>;
@@ -235,40 +235,40 @@ function IngredientsEditor({ items, errors, onChange }: { items: Ingredient[]; e
   const set = (i: number, patch: Partial<Ingredient>) => onChange(items.map((x, k) => (k === i ? { ...x, ...patch } : x)));
   return (
     <fieldset className="card flex flex-col gap-3">
-      <legend className="px-1 text-xl font-bold">{tr.recipe.ingredients}</legend>
+      <legend className="px-1 text-xl font-bold">{t.recipe.ingredients}</legend>
       <ol className="flex flex-col gap-3">
         {items.map((ing, i) => (
           <li key={ing.id} className="grid grid-cols-[4.5rem_8rem_1fr] items-start gap-2 sm:grid-cols-[5rem_9rem_1fr_auto]">
-            <input aria-label={`Malzeme ${i + 1} miktar`} className="input" type="number" min={0} step="any" inputMode="decimal"
+            <input aria-label={`Ingredient ${i + 1} amount`} className="input" type="number" min={0} step="any" inputMode="decimal"
               value={ing.quantity.amount ?? ""} disabled={ing.quantity.toTaste && ing.quantity.amount == null}
               onChange={(e) => set(i, { quantity: { ...ing.quantity, amount: e.target.value === "" ? null : Number(e.target.value) } })} />
-            <select aria-label={`Malzeme ${i + 1} birim`} className="input" value={ing.quantity.unit ?? ""}
+            <select aria-label={`Ingredient ${i + 1} unit`} className="input" value={ing.quantity.unit ?? ""}
               onChange={(e) => set(i, { quantity: { ...ing.quantity, unit: (e.target.value || null) as Unit | null } })}>
               <option value="">—</option>
               {(Object.keys(unitLabels) as Unit[]).filter((u) => u !== "other").map((u) => <option key={u} value={u}>{unitLabels[u]}</option>)}
             </select>
             <div className="flex flex-col gap-1">
-              <input aria-label={`Malzeme ${i + 1} adı`} className="input" value={ing.name} maxLength={120} placeholder="ör. kırmızı mercimek" onChange={(e) => set(i, { name: e.target.value })} />
-              <input aria-label={`Malzeme ${i + 1} not`} className="input text-sm" value={ing.note ?? ""} maxLength={200} placeholder="not (isteğe bağlı)" onChange={(e) => set(i, { note: e.target.value || null })} />
+              <input aria-label={`Ingredient ${i + 1} name`} className="input" value={ing.name} maxLength={120} placeholder="e.g. red lentils" onChange={(e) => set(i, { name: e.target.value })} />
+              <input aria-label={`Ingredient ${i + 1} note`} className="input text-sm" value={ing.note ?? ""} maxLength={200} placeholder="note (optional)" onChange={(e) => set(i, { note: e.target.value || null })} />
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={ing.quantity.toTaste} onChange={(e) => set(i, { quantity: { ...ing.quantity, toTaste: e.target.checked } })} />
-                {tr.recipe.toTaste}
+                {t.recipe.toTaste}
               </label>
               {errors[`ingredients[${i}].quantity`] || errors[`ingredients[${i}].name`] ? (
                 <span className="text-sm text-danger">{[...(errors[`ingredients[${i}].name`] ?? []), ...(errors[`ingredients[${i}].quantity`] ?? [])].join(" ")}</span>
               ) : null}
             </div>
             <div className="col-span-3 flex gap-1 sm:col-span-1">
-              <button type="button" className="btn-ghost px-2" aria-label={`Malzeme ${i + 1} yukarı taşı`} onClick={() => onChange(move(items, i, -1))} disabled={i === 0}>↑</button>
-              <button type="button" className="btn-ghost px-2" aria-label={`Malzeme ${i + 1} aşağı taşı`} onClick={() => onChange(move(items, i, 1))} disabled={i === items.length - 1}>↓</button>
-              <button type="button" className="btn-ghost px-2" aria-label={`Malzeme ${i + 1} sil`} onClick={() => onChange(items.filter((_, k) => k !== i))}>✕</button>
+              <button type="button" className="btn-ghost px-2" aria-label={`Move ingredient ${i + 1} up`} onClick={() => onChange(move(items, i, -1))} disabled={i === 0}>↑</button>
+              <button type="button" className="btn-ghost px-2" aria-label={`Move ingredient ${i + 1} down`} onClick={() => onChange(move(items, i, 1))} disabled={i === items.length - 1}>↓</button>
+              <button type="button" className="btn-ghost px-2" aria-label={`Delete ingredient ${i + 1}`} onClick={() => onChange(items.filter((_, k) => k !== i))}>✕</button>
             </div>
           </li>
         ))}
       </ol>
       {errors.ingredients ? <p className="text-sm text-danger">{errors.ingredients.join(" ")}</p> : null}
       <button type="button" className="btn-ghost self-start" onClick={() => onChange([...items, { id: newId(), name: "", quantity: { amount: null, unit: null, toTaste: false }, note: null }])}>
-        + {tr.recipe.addIngredient}
+        + {t.recipe.addIngredient}
       </button>
     </fieldset>
   );
@@ -277,23 +277,23 @@ function IngredientsEditor({ items, errors, onChange }: { items: Ingredient[]; e
 function StepsEditor({ items, errors, onChange }: { items: Step[]; errors: Record<string, string[]>; onChange: (v: Step[]) => void }) {
   return (
     <fieldset className="card flex flex-col gap-3">
-      <legend className="px-1 text-xl font-bold">{tr.recipe.steps}</legend>
+      <legend className="px-1 text-xl font-bold">{t.recipe.steps}</legend>
       <ol className="flex flex-col gap-3">
         {items.map((s, i) => (
           <li key={s.id} className="flex items-start gap-2">
             <span className="mt-2 w-6 font-bold" aria-hidden>{i + 1}.</span>
-            <textarea aria-label={`Adım ${i + 1}`} className="input min-h-20 flex-1" value={s.text} maxLength={2000}
+            <textarea aria-label={`Step ${i + 1}`} className="input min-h-20 flex-1" value={s.text} maxLength={2000}
               onChange={(e) => onChange(items.map((x, k) => (k === i ? { ...x, text: e.target.value } : x)))} />
             <div className="flex flex-col gap-1">
-              <button type="button" className="btn-ghost px-2" aria-label={`Adım ${i + 1} yukarı taşı`} onClick={() => onChange(move(items, i, -1))} disabled={i === 0}>↑</button>
-              <button type="button" className="btn-ghost px-2" aria-label={`Adım ${i + 1} aşağı taşı`} onClick={() => onChange(move(items, i, 1))} disabled={i === items.length - 1}>↓</button>
-              <button type="button" className="btn-ghost px-2" aria-label={`Adım ${i + 1} sil`} onClick={() => onChange(items.filter((_, k) => k !== i))}>✕</button>
+              <button type="button" className="btn-ghost px-2" aria-label={`Move step ${i + 1} up`} onClick={() => onChange(move(items, i, -1))} disabled={i === 0}>↑</button>
+              <button type="button" className="btn-ghost px-2" aria-label={`Move step ${i + 1} down`} onClick={() => onChange(move(items, i, 1))} disabled={i === items.length - 1}>↓</button>
+              <button type="button" className="btn-ghost px-2" aria-label={`Delete step ${i + 1}`} onClick={() => onChange(items.filter((_, k) => k !== i))}>✕</button>
             </div>
           </li>
         ))}
       </ol>
       {errors.steps ? <p className="text-sm text-danger">{errors.steps.join(" ")}</p> : null}
-      <button type="button" className="btn-ghost self-start" onClick={() => onChange([...items, { id: newId(), text: "" }])}>+ {tr.recipe.addStep}</button>
+      <button type="button" className="btn-ghost self-start" onClick={() => onChange([...items, { id: newId(), text: "" }])}>+ {t.recipe.addStep}</button>
     </fieldset>
   );
 }
@@ -308,7 +308,7 @@ function TagsInput({ value, onChange }: { value: string[]; onChange: (v: string[
   );
 }
 
-/** Kapak fotoğrafı: tek blob kısa süreli yükleme yetkisi → PUT → tamamla → işlenene kadar bekle. */
+/** Cover photo: single-blob short-lived upload grant → PUT → complete → wait until processed. */
 function CoverPicker({ mediaId, onChange }: { mediaId: string | null; onChange: (id: string | null) => void }) {
   const { api } = useAuth();
   const [media, setMedia] = useState<Media | null>(null);
@@ -333,46 +333,46 @@ function CoverPicker({ mediaId, onChange }: { mediaId: string | null; onChange: 
   }, [api, mediaId]);
 
   async function upload(original: File) {
-    if (!["image/jpeg", "image/png", "image/webp"].includes(original.type)) { setStatus("Yalnız JPEG, PNG veya WebP."); return; }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(original.type)) { setStatus("JPEG, PNG or WebP only."); return; }
     const id = newId();
     try {
-      setStatus("Hazırlanıyor…");
+      setStatus("Preparing…");
       const file = await downscale(original);
-      if (file.size > 10 * 1024 * 1024) { setStatus("Fotoğraf en fazla 10 MB olabilir."); return; }
-      setStatus("Yükleniyor…");
+      if (file.size > 10 * 1024 * 1024) { setStatus("The photo can be at most 10 MB."); return; }
+      setStatus("Uploading…");
       const grant = await unwrap(api.POST("/v1/media/uploads", { body: { mediaId: id, contentType: file.type as "image/jpeg", sizeBytes: file.size } }));
       const put = await fetch(grant.uploadUrl, { method: "PUT", headers: grant.headers, body: file });
-      if (!put.ok) throw new Error(`Yükleme başarısız (${put.status})`);
+      if (!put.ok) throw new Error(`Upload failed (${put.status})`);
       await unwrap(api.POST("/v1/media/{mediaId}/complete", { params: { path: { mediaId: id } } }));
-      setStatus("İşleniyor… Kaydetmeyi unutmayın.");
+      setStatus("Processing… Don't forget to save.");
       onChange(id);
     } catch (e) {
-      setStatus(e instanceof ApiError ? problemMessage(e.code) : "Fotoğraf yüklenemedi.");
+      setStatus(e instanceof ApiError ? problemMessage(e.code) : "Could not upload the photo.");
     }
   }
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="font-semibold">{tr.recipe.cover}</span>
+      <span className="font-semibold">{t.recipe.cover}</span>
       {mediaId && media?.id === mediaId && media.status === "ready" && media.thumbUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={media.thumbUrl} alt="Kapak önizlemesi" width={400} height={300} className="w-48 rounded-lg object-cover" />
+        <img src={media.thumbUrl} alt="Cover preview" width={400} height={300} className="w-48 rounded-lg object-cover" />
       ) : mediaId ? (
-        <p className="text-sm text-muted">{media?.status === "rejected" ? `Fotoğraf reddedildi: ${media.rejectReason ?? ""}` : "Fotoğraf işleniyor…"}</p>
+        <p className="text-sm text-muted">{media?.status === "rejected" ? `Photo rejected: ${media.rejectReason ?? ""}` : "Processing photo…"}</p>
       ) : null}
       <div className="flex flex-wrap gap-2">
         <label className="btn-ghost cursor-pointer">
-          Fotoğraf seç
+          Choose photo
           <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
         </label>
-        {mediaId ? <button type="button" className="btn-ghost" onClick={() => onChange(null)}>Kaldır</button> : null}
+        {mediaId ? <button type="button" className="btn-ghost" onClick={() => onChange(null)}>Remove</button> : null}
       </div>
       {status ? <p role="status" className="text-sm text-muted">{status}</p> : null}
     </div>
   );
 }
 
-/** Yüklemeden önce en uzun kenarı 2400 px'e küçültür (bant genişliği ve sunucu belleği için). */
+/** Downscales the longest side to 2400 px before upload (for bandwidth and server memory). */
 async function downscale(file: File, maxEdge = 2400): Promise<Blob> {
   try {
     const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
@@ -385,7 +385,7 @@ async function downscale(file: File, maxEdge = 2400): Promise<Blob> {
     const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.85));
     return blob ?? file;
   } catch {
-    return file; // tarayıcı desteklemiyorsa orijinal (sunucu yine doğrular)
+    return file; // the original if the browser can't do it (the server validates anyway)
   }
 }
 
@@ -395,22 +395,22 @@ function ConflictDialog({ local, remote, onUseRemote, onKeepLocal, onOverwrite }
   const diffs = useMemo(() => {
     const rc = contentOf(remote);
     const fields: [string, unknown, unknown][] = [
-      [tr.recipe.title, local.title, rc.title],
-      [tr.recipe.description, local.description, rc.description],
-      [tr.recipe.ingredients, local.ingredients.map((i) => i.name).join(", "), rc.ingredients.map((i) => i.name).join(", ")],
-      [tr.recipe.steps, local.steps.map((s) => s.text).join(" / "), rc.steps.map((s) => s.text).join(" / ")],
-      [tr.recipe.tags, local.tags.join(", "), rc.tags.join(", ")],
-      [tr.recipe.privateNote, local.privateNote, rc.privateNote],
+      [t.recipe.title, local.title, rc.title],
+      [t.recipe.description, local.description, rc.description],
+      [t.recipe.ingredients, local.ingredients.map((i) => i.name).join(", "), rc.ingredients.map((i) => i.name).join(", ")],
+      [t.recipe.steps, local.steps.map((s) => s.text).join(" / "), rc.steps.map((s) => s.text).join(" / ")],
+      [t.recipe.tags, local.tags.join(", "), rc.tags.join(", ")],
+      [t.recipe.privateNote, local.privateNote, rc.privateNote],
     ];
     return fields.filter(([, a, b]) => JSON.stringify(a ?? "") !== JSON.stringify(b ?? ""));
   }, [local, remote]);
   return (
-    <section role="alertdialog" aria-labelledby="cakisma" className="card flex flex-col gap-3 border-danger">
-      <h2 id="cakisma" className="text-xl font-bold">{tr.conflict.title}</h2>
-      <p>{remote.deleted ? "Bu tarif başka bir cihazda silindi." : tr.conflict.body}</p>
+    <section role="alertdialog" aria-labelledby="conflict" className="card flex flex-col gap-3 border-danger">
+      <h2 id="conflict" className="text-xl font-bold">{t.conflict.title}</h2>
+      <p>{remote.deleted ? "This recipe was deleted on another device." : t.conflict.body}</p>
       {!remote.deleted ? (
         <table className="w-full text-left text-sm">
-          <thead><tr><th scope="col">Alan</th><th scope="col">Sizin sürümünüz</th><th scope="col">Sunucudaki sürüm</th></tr></thead>
+          <thead><tr><th scope="col">Field</th><th scope="col">Your version</th><th scope="col">Server version</th></tr></thead>
           <tbody>
             {diffs.map(([f, a, b]) => (
               <tr key={f} className="border-t border-border align-top"><th scope="row" className="pr-2">{f}</th><td className="pr-2">{String(a ?? "—")}</td><td>{String(b ?? "—")}</td></tr>
@@ -419,21 +419,21 @@ function ConflictDialog({ local, remote, onUseRemote, onKeepLocal, onOverwrite }
         </table>
       ) : null}
       <div className="flex flex-wrap gap-2">
-        {!remote.deleted ? <button type="button" className="btn-ghost" onClick={onUseRemote}>{tr.conflict.useRemote}</button> : null}
-        <button type="button" className="btn-primary" onClick={onKeepLocal}>{tr.conflict.keepLocalAsNew}</button>
-        {!remote.deleted ? <button type="button" className="btn-danger" onClick={onOverwrite}>{tr.conflict.overwrite}</button> : null}
+        {!remote.deleted ? <button type="button" className="btn-ghost" onClick={onUseRemote}>{t.conflict.useRemote}</button> : null}
+        <button type="button" className="btn-primary" onClick={onKeepLocal}>{t.conflict.keepLocalAsNew}</button>
+        {!remote.deleted ? <button type="button" className="btn-danger" onClick={onOverwrite}>{t.conflict.overwrite}</button> : null}
       </div>
     </section>
   );
 }
 
-/** Koleksiyon üyeliği: revision kontrollü; çakışmada güncel koleksiyon üzerine yeniden uygulanır. */
+/** Collection membership: revision checked; on conflict it is reapplied to the current collection. */
 function CollectionMembership({ recipeId }: { recipeId: string }) {
   const { api } = useAuth();
   const [collections, setCollections] = useState<Collection[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    unwrap(api.GET("/v1/collections", { params: { query: { limit: 50 } } })).then((p) => setCollections(p.items)).catch(() => setError("Koleksiyonlar yüklenemedi."));
+    unwrap(api.GET("/v1/collections", { params: { query: { limit: 50 } } })).then((p) => setCollections(p.items)).catch(() => setError("Could not load collections."));
   }, [api]);
   if (!collections || collections.length === 0) return error ? <p className="text-sm text-danger">{error}</p> : null;
 
@@ -454,7 +454,7 @@ function CollectionMembership({ recipeId }: { recipeId: string }) {
 
   return (
     <fieldset className="card">
-      <legend className="px-1 font-bold">Koleksiyonlar</legend>
+      <legend className="px-1 font-bold">Collections</legend>
       <div className="flex flex-wrap gap-4">
         {collections.map((c) => (
           <label key={c.id} className="flex items-center gap-2">

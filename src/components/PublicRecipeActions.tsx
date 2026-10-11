@@ -7,14 +7,14 @@ import { ApiError, newId, unwrap } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
 import { problemMessage } from "@/lib/i18n";
 
-/** Giriş yapmış okuyucu için favori, deftere kopyalama, bildirme ve engelleme. Tümü online. */
+/** Favorite, copy to recipe book, report and block for signed-in readers. All online. */
 export function PublicRecipeActions({ recipeId, authorId, copyAllowed }: { recipeId: string; authorId: string; copyAllowed: boolean }) {
   const { user, ready, api } = useAuth();
   const router = useRouter();
   const [isFavorite, setIsFavorite] = useState<boolean | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
-  // Kopyalama isteğinin kimliği retry boyunca sabit kalır (idempotent).
+  // The copy request id stays stable across retries (idempotent).
   const [copyOp] = useState(() => newId());
 
   useEffect(() => {
@@ -32,8 +32,8 @@ export function PublicRecipeActions({ recipeId, authorId, copyAllowed }: { recip
   if (!user)
     return (
       <p className="card text-sm">
-        Favorilere eklemek, deftere kopyalamak ve soru sormak için{" "}
-        <Link className="font-semibold underline" href={`/giris?next=/tarif/${recipeId}`}>giriş yapın</Link>.
+        To add favorites, copy to your recipe book and ask questions,{" "}
+        <Link className="font-semibold underline" href={`/sign-in?next=/recipe/${recipeId}`}>sign in</Link>.
       </p>
     );
   const isAuthor = user.uid === authorId;
@@ -71,10 +71,10 @@ export function PublicRecipeActions({ recipeId, authorId, copyAllowed }: { recip
               })
             }
           >
-            {isFavorite ? "★ Favorilerde" : "☆ Favorilere ekle"}
+            {isFavorite ? "★ In favorites" : "☆ Add to favorites"}
           </button>
         ) : (
-          <Link className="btn-ghost" href={`/defter/${recipeId}`}>Defterimde düzenle</Link>
+          <Link className="btn-ghost" href={`/notebook/${recipeId}`}>Edit in my recipes</Link>
         )}
         {!isAuthor && copyAllowed ? (
           <button
@@ -86,12 +86,12 @@ export function PublicRecipeActions({ recipeId, authorId, copyAllowed }: { recip
                 const copy = await unwrap(
                   api.POST("/v1/public/recipes/{recipeId}/copy", { params: { path: { recipeId } }, body: { operationId: copyOp } }),
                 );
-                setMessage({ kind: "ok", text: "Tarif defterinize özel kopya olarak eklendi." });
-                router.push(`/defter/${copy.id}`);
+                setMessage({ kind: "ok", text: "Added to your recipe book as a private copy." });
+                router.push(`/notebook/${copy.id}`);
               })
             }
           >
-            {busy === "copy" ? "Kopyalanıyor…" : "Deftere kopyala"}
+            {busy === "copy" ? "Copying…" : "Copy to my recipes"}
           </button>
         ) : null}
         {!isAuthor ? (
@@ -102,13 +102,13 @@ export function PublicRecipeActions({ recipeId, authorId, copyAllowed }: { recip
               disabled={busy !== null}
               onClick={() =>
                 run("report", async () => {
-                  if (!confirm("Bu tarifi uygunsuz içerik olarak bildirmek istiyor musunuz?")) return;
+                  if (!confirm("Report this recipe as inappropriate?")) return;
                   await unwrap(api.POST("/v1/reports", { body: { operationId: newId(), targetType: "recipe", targetId: recipeId, reason: "abuse" } }));
-                  setMessage({ kind: "ok", text: "Bildiriminiz alındı. Teşekkürler." });
+                  setMessage({ kind: "ok", text: "Thanks, your report was received." });
                 })
               }
             >
-              Bildir
+              Report
             </button>
             <button
               type="button"
@@ -116,13 +116,13 @@ export function PublicRecipeActions({ recipeId, authorId, copyAllowed }: { recip
               disabled={busy !== null}
               onClick={() =>
                 run("block", async () => {
-                  if (!confirm("Bu şefi engellerseniz sizinle etkileşim kuramaz. Devam edilsin mi?")) return;
+                  if (!confirm("If you block this chef, they can no longer interact with you. Continue?")) return;
                   await unwrap(api.PUT("/v1/blocks/{userId}", { params: { path: { userId: authorId } } }));
-                  setMessage({ kind: "ok", text: "Kullanıcı engellendi." });
+                  setMessage({ kind: "ok", text: "User blocked." });
                 })
               }
             >
-              Engelle
+              Block
             </button>
           </>
         ) : null}

@@ -8,7 +8,7 @@ import { formatDate, problemMessage } from "@/lib/i18n";
 
 type Props = { recipeId: string; authorId: string; initial: Discussion[]; initialContinuation: string | null };
 
-/** Yorum / soru ve tek seviyeli yanıtlar. Gönderim online; sunucu onayı olmadan eklenmiş gösterilmez. */
+/** Comments / questions and single-level replies. Posting is online; nothing is shown as added before the server confirms it. */
 export function DiscussionThread({ recipeId, authorId, initial, initialContinuation }: Props) {
   const { user, api } = useAuth();
   const [items, setItems] = useState<Discussion[]>(initial);
@@ -26,8 +26,8 @@ export function DiscussionThread({ recipeId, authorId, initial, initialContinuat
 
   return (
     <section aria-labelledby="tartisma" className="flex flex-col gap-4">
-      <h2 id="tartisma" className="text-2xl font-bold">Yorumlar ve sorular</h2>
-      {topLevel.length === 0 ? <p className="text-muted">Henüz yorum yok.</p> : null}
+      <h2 id="discussion" className="text-2xl font-bold">Comments and questions</h2>
+      {topLevel.length === 0 ? <p className="text-muted">No comments yet.</p> : null}
       <ul className="flex flex-col gap-3">
         {topLevel.map((d) => (
           <li key={d.id} className="card">
@@ -49,12 +49,12 @@ export function DiscussionThread({ recipeId, authorId, initial, initialContinuat
           </li>
         ))}
       </ul>
-      {continuation ? <button type="button" className="btn-ghost self-start" onClick={loadMore}>Daha fazla</button> : null}
+      {continuation ? <button type="button" className="btn-ghost self-start" onClick={loadMore}>Load more</button> : null}
       {user ? (
         <Composer recipeId={recipeId} onCreated={(c) => setItems((prev) => [...prev, c])} apiCall={api} isOwner={user.uid === authorId} />
       ) : (
         <p className="text-sm">
-          Yorum yazmak için <Link className="underline" href={`/giris?next=/tarif/${recipeId}`}>giriş yapın</Link>.
+          <Link className="underline" href={`/sign-in?next=/recipe/${recipeId}`}>Sign in</Link> to comment.
         </p>
       )}
     </section>
@@ -64,13 +64,13 @@ export function DiscussionThread({ recipeId, authorId, initial, initialContinuat
 function Entry({ d, recipeId }: { d: Discussion; recipeId: string }) {
   const { user, api } = useAuth();
   const [reported, setReported] = useState(false);
-  if (d.removed) return <p className="italic text-muted">Bu girdi kaldırıldı.</p>;
+  if (d.removed) return <p className="italic text-muted">This entry was removed.</p>;
   return (
     <div>
       <p className="text-sm text-muted">
         <strong className="text-foreground">{d.author.displayName}</strong>
-        {d.isRecipeOwner ? <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-xs text-accent-contrast">Tarif sahibi</span> : null}
-        {d.kind === "question" ? <span className="ml-2 rounded border border-border px-1.5 py-0.5 text-xs">Soru</span> : null}
+        {d.isRecipeOwner ? <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-xs text-accent-contrast">Recipe owner</span> : null}
+        {d.kind === "question" ? <span className="ml-2 rounded border border-border px-1.5 py-0.5 text-xs">Question</span> : null}
         {" · "}{formatDate(d.createdAt)}
       </p>
       <p className="whitespace-pre-line">{d.body}</p>
@@ -83,10 +83,10 @@ function Entry({ d, recipeId }: { d: Discussion; recipeId: string }) {
             setReported(true);
           }}
         >
-          Bildir
+          Report
         </button>
       ) : null}
-      {reported ? <span className="text-sm text-ok" role="status">Bildirildi</span> : null}
+      {reported ? <span className="text-sm text-ok" role="status">Reported</span> : null}
     </div>
   );
 }
@@ -105,7 +105,7 @@ function Composer({
   const [open, setOpen] = useState(!compact);
 
   if (!open)
-    return <button type="button" className="mt-2 text-sm underline" onClick={() => setOpen(true)}>Yanıtla</button>;
+    return <button type="button" className="mt-2 text-sm underline" onClick={() => setOpen(true)}>Reply</button>;
 
   return (
     <form
@@ -127,7 +127,7 @@ function Composer({
           setOp(newId());
           if (compact) setOpen(false);
         } catch (err) {
-          // Metin korunur; aynı operationId ile yeniden denenebilir.
+          // The text is kept; it can be retried with the same operationId.
           setError(problemMessage(err instanceof ApiError ? err.code : undefined));
         } finally {
           setBusy(false);
@@ -135,18 +135,18 @@ function Composer({
       }}
     >
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-semibold">{parentId ? "Yanıtınız" : isOwner ? "Not ekleyin" : "Yorumunuz veya sorunuz"}</span>
+        <span className="text-sm font-semibold">{parentId ? "Your reply" : isOwner ? "Add a note" : "Your comment or question"}</span>
         <textarea className="input min-h-24" value={body} maxLength={2000} onChange={(e) => setBody(e.target.value)} required />
       </label>
       {!parentId ? (
         <fieldset className="flex gap-4">
-          <legend className="sr-only">Tür</legend>
-          <label className="flex items-center gap-2"><input type="radio" checked={kind === "comment"} onChange={() => setKind("comment")} /> Yorum</label>
-          <label className="flex items-center gap-2"><input type="radio" checked={kind === "question"} onChange={() => setKind("question")} /> Soru</label>
+          <legend className="sr-only">Type</legend>
+          <label className="flex items-center gap-2"><input type="radio" checked={kind === "comment"} onChange={() => setKind("comment")} /> Comment</label>
+          <label className="flex items-center gap-2"><input type="radio" checked={kind === "question"} onChange={() => setKind("question")} /> Question</label>
         </fieldset>
       ) : null}
       {error ? <p role="alert" className="text-danger">{error}</p> : null}
-      <button type="submit" className="btn-primary self-start" disabled={busy}>{busy ? "Gönderiliyor…" : "Gönder"}</button>
+      <button type="submit" className="btn-primary self-start" disabled={busy}>{busy ? "Sending…" : "Send"}</button>
     </form>
   );
 }

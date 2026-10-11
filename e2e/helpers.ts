@@ -23,13 +23,13 @@ export async function api<T>(token: string, method: string, path: string, body?:
   return (await r.json()) as T;
 }
 
-export function content(title: string, note = "GIZLI-E2E-NOT") {
+export function content(title: string, note = "SECRET-E2E-NOTE") {
   return {
     title,
-    description: "Uçtan uca test tarifi",
-    ingredients: [{ id: randomUUID(), name: "Kırmızı mercimek", quantity: { amount: 1, unit: "cup", toTaste: false } }],
-    steps: [{ id: randomUUID(), text: "Mercimeği yıka ve haşla." }],
-    tags: ["Çorba"],
+    description: "End-to-end test recipe",
+    ingredients: [{ id: randomUUID(), name: "Red lentils", quantity: { amount: 1, unit: "cup", toTaste: false } }],
+    steps: [{ id: randomUUID(), text: "Rinse and boil the lentils." }],
+    tags: ["Soup"],
     privateNote: note,
   };
 }

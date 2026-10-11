@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
-// Karar: Cache Components kapalı (docs/decisions/0004-web-rendering.md). Public tarif sayfaları
-// her istekte sunucuda üretilir (force-dynamic); ilk sürümde bayat public cache kullanılmaz.
+// Decision: Cache Components off (docs/decisions/0004-web-rendering.md). Public recipe pages are
+// rendered on the server for every request (force-dynamic); the first release uses no stale public cache.
 const nextConfig: NextConfig = {
   cacheComponents: false,
   poweredByHeader: false,

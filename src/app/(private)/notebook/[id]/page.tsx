@@ -10,13 +10,13 @@ import { useAsync } from "@/lib/hooks";
 export default function RecipeEditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { api } = useAuth();
-  const isNew = id === "yeni";
+  const isNew = id === "new";
   const recipe = useAsync(
     async () => (isNew ? null : await unwrap(api.GET("/v1/recipes/{recipeId}", { params: { path: { recipeId: id } } }))),
     [api, id, isNew],
   );
   if (recipe.state.status === "loading") return <Loading />;
   if (recipe.state.status === "error") return <ErrorState error={recipe.state.error} onRetry={recipe.reload} />;
-  if (recipe.state.data?.deleted) return <ErrorState error={new Error("Bu tarif silinmiş.")} />;
+  if (recipe.state.data?.deleted) return <ErrorState error={new Error("This recipe was deleted.")} />;
   return <RecipeEditor key={recipe.state.data?.id ?? "new"} initial={recipe.state.data} />;
 }

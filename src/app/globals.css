@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Mutfakta okunabilirlik: büyük taban yazı, yüksek kontrast, geniş dokunma alanları. */
+/* Kitchen readability: large base text, high contrast, generous touch targets. */
 :root {
   --background: #fffdf8;
   --foreground: #1d1b16;

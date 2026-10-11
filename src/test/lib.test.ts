@@ -4,40 +4,40 @@ import { recipeJsonLd } from "@/lib/public-data";
 import { ApiError, apiUrl, unwrap, type PublicRecipe } from "@/lib/api/client";
 
 const recipe: PublicRecipe = {
-  id: "r1", title: "Mercimek <script>", description: "d", tags: ["Çorba"], author: { id: "a", displayName: "Ayşe" },
+  id: "r1", title: "Lentils <script>", description: "d", tags: ["Soup"], author: { id: "a", displayName: "Alex" },
   publishedAt: "2026-10-11T10:00:00Z", updatedAt: "2026-10-11T10:00:00Z", publicRevision: 1, copyAllowed: true,
-  prepMinutes: 10, cookMinutes: 20, yield: { amount: 4, unit: "porsiyon" },
-  ingredients: [{ id: "i", name: "Tuz", quantity: { toTaste: true } }],
-  steps: [{ id: "s", text: "Pişir" }],
+  prepMinutes: 10, cookMinutes: 20, yield: { amount: 4, unit: "servings" },
+  ingredients: [{ id: "i", name: "Salt", quantity: { toTaste: true } }],
+  steps: [{ id: "s", text: "Cook" }],
 };
 
 describe("formatQuantity", () => {
-  it("gerektiği kadar gösterir", () => expect(formatQuantity({ toTaste: true })).toBe("gerektiği kadar"));
-  it("Türkçe sayı ve birim", () => expect(formatQuantity({ amount: 1.5, unit: "cup", toTaste: false })).toBe("1,5 su bardağı"));
+  it("shows to taste", () => expect(formatQuantity({ toTaste: true })).toBe("to taste"));
+  it("formats number and unit", () => expect(formatQuantity({ amount: 1.5, unit: "cup", toTaste: false })).toBe("1.5 cup"));
 });
 
 describe("recipeJsonLd", () => {
-  it("schema.org Recipe üretir ve süreleri ISO 8601 yazar", () => {
+  it("builds a schema.org Recipe with ISO 8601 durations", () => {
     const ld = recipeJsonLd(recipe, "https://site", null);
     expect(ld["@type"]).toBe("Recipe");
     expect(ld.totalTime).toBe("PT30M");
-    expect(ld.recipeIngredient).toEqual(["Tuz (gerektiği kadar)"]);
+    expect(ld.recipeIngredient).toEqual(["Salt (to taste)"]);
     expect(JSON.stringify(ld)).not.toContain("privateNote");
   });
 });
 
 describe("api client", () => {
-  it("public medya yolunu API köküne çözer", () => expect(apiUrl("/api/v1/x")).toBe("http://api.test/api/v1/x"));
-  it("Problem Details'i ApiError'a çevirir", async () => {
+  it("resolves public media paths against the API root", () => expect(apiUrl("/api/v1/x")).toBe("http://api.test/api/v1/x"));
+  it("maps Problem Details to ApiError", async () => {
     const res = new Response(null, { status: 409 });
     await expect(
       unwrap(Promise.resolve({ error: { code: "revision-conflict", status: 409, title: "x", type: "t", retryable: false }, response: res })),
     ).rejects.toMatchObject({ status: 409, code: "revision-conflict" });
   });
-  it("ağ hatası sahte başarı üretmez", () => {
+  it("a network error never fakes success", () => {
     const e = new ApiError(0, null);
     expect(e.isNetwork).toBe(true);
-    expect(problemMessage(e.code)).toContain("kaydedilmedi");
+    expect(problemMessage(e.code)).toContain("not saved");
   });
   vi.unstubAllGlobals();
 });

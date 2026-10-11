@@ -6,7 +6,7 @@ import { Empty, ErrorState, Loading } from "@/components/States";
 import { ApiError, newId, unwrap, type Collection, type Recipe } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
 import { useAsync } from "@/lib/hooks";
-import { problemMessage, tr } from "@/lib/i18n";
+import { problemMessage, t } from "@/lib/i18n";
 
 export default function NotebookPage() {
   const { api } = useAuth();
@@ -40,8 +40,8 @@ export default function NotebookPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">{tr.nav.notebook}</h1>
-        <Link href="/defter/yeni" className="btn-primary">+ Yeni tarif</Link>
+        <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">{t.nav.notebook}</h1>
+        <Link href="/notebook/new" className="btn-primary">+ New recipe</Link>
       </div>
       <form
         role="search"
@@ -51,9 +51,9 @@ export default function NotebookPage() {
           setQuery(q.trim());
         }}
       >
-        <label className="sr-only" htmlFor="ara">Ad, malzeme veya etiketle ara</label>
-        <input id="ara" className="input" placeholder="Ad, malzeme veya etiket" value={q} onChange={(e) => setQ(e.target.value)} maxLength={80} />
-        <button className="btn-ghost" type="submit">Ara</button>
+        <label className="sr-only" htmlFor="search">Search by title, ingredient or tag</label>
+        <input id="search" className="input" placeholder="Title, ingredient or tag" value={q} onChange={(e) => setQ(e.target.value)} maxLength={80} />
+        <button className="btn-ghost" type="submit">Search</button>
       </form>
       <div className="grid gap-6 md:grid-cols-[220px_1fr]">
         <CollectionsPanel
@@ -62,21 +62,21 @@ export default function NotebookPage() {
           onSelect={setCollectionId}
           onChanged={collections.reload}
         />
-        <section aria-label="Tarifler">
+        <section aria-label="Recipes">
           {recipes.state.status === "loading" ? <Loading /> : null}
           {recipes.state.status === "error" ? <ErrorState error={recipes.state.error} onRetry={recipes.reload} /> : null}
           {recipes.state.status === "ready" ? (
             recipes.state.data.length === 0 ? (
-              <Empty>{query ? "Aramanızla eşleşen tarif yok." : "Defteriniz boş. İlk tarifinizi ekleyin."}</Empty>
+              <Empty>{query ? "No recipes match your search." : "Your recipe book is empty. Add your first recipe."}</Empty>
             ) : (
               <ul className="flex flex-col gap-2">
                 {[...recipes.state.data, ...extra].map((r) => (
                   <li key={r.id}>
-                    <Link href={`/defter/${r.id}`} className="card flex items-center justify-between gap-3 hover:border-accent">
-                      <span className="font-semibold">{r.title || "(Adsız taslak)"}</span>
+                    <Link href={`/notebook/${r.id}`} className="card flex items-center justify-between gap-3 hover:border-accent">
+                      <span className="font-semibold">{r.title || "(Untitled draft)"}</span>
                       <span className="flex gap-2 text-sm text-muted">
-                        {r.source ? <span>Kopya</span> : null}
-                        {r.publication.status === "published" ? <span className="text-ok">{tr.publish.published}</span> : <span>{tr.publish.unpublished}</span>}
+                        {r.source ? <span>Copy</span> : null}
+                        {r.publication.status === "published" ? <span className="text-ok">{t.publish.published}</span> : <span>{t.publish.unpublished}</span>}
                       </span>
                     </Link>
                   </li>
@@ -84,7 +84,7 @@ export default function NotebookPage() {
               </ul>
             )
           ) : null}
-          {continuation ? <button type="button" className="btn-ghost mt-3" onClick={more}>Daha fazla</button> : null}
+          {continuation ? <button type="button" className="btn-ghost mt-3" onClick={more}>Load more</button> : null}
         </section>
       </div>
     </div>
@@ -103,10 +103,10 @@ function CollectionsPanel({
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   return (
-    <aside aria-label="Koleksiyonlar" className="flex flex-col gap-2">
-      <h2 className="font-bold">Koleksiyonlar</h2>
+    <aside aria-label="Collections" className="flex flex-col gap-2">
+      <h2 className="font-bold">Collections</h2>
       <button type="button" className={`text-left ${selected === null ? "font-bold" : ""}`} aria-pressed={selected === null} onClick={() => onSelect(null)}>
-        Tüm tarifler
+        All recipes
       </button>
       {state.status === "ready"
         ? state.data.map((c) => (
@@ -115,7 +115,7 @@ function CollectionsPanel({
             </button>
           ))
         : null}
-      {state.status === "error" ? <p className="text-sm text-danger">Koleksiyonlar yüklenemedi.</p> : null}
+      {state.status === "error" ? <p className="text-sm text-danger">Could not load collections.</p> : null}
       <form
         className="mt-2 flex gap-1"
         onSubmit={async (e) => {
@@ -131,9 +131,9 @@ function CollectionsPanel({
           }
         }}
       >
-        <label className="sr-only" htmlFor="yeni-koleksiyon">Yeni koleksiyon adı</label>
-        <input id="yeni-koleksiyon" className="input" placeholder="Yeni koleksiyon" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
-        <button className="btn-ghost" type="submit" aria-label="Koleksiyon ekle">+</button>
+        <label className="sr-only" htmlFor="new-collection">New collection name</label>
+        <input id="new-collection" className="input" placeholder="New collection" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
+        <button className="btn-ghost" type="submit" aria-label="Add collection">+</button>
       </form>
       {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
     </aside>

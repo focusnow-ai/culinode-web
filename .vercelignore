@@ -1,4 +1,4 @@
-# Yerel ortam dosyaları yüklenmez (emulator URL'si ve CLI token'ı içerir); değerler Vercel ortam değişkenlerinden gelir.
+# Local env files are never uploaded (they contain the emulator URL and a CLI token); values come from Vercel environment variables.
 .env*
 node_modules
 .next

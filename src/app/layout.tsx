@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Atkinson_Hyperlegible, Fraunces } from "next/font/google";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Providers } from "@/components/Providers";
-import { tr } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import "./globals.css";
 
 const body = Atkinson_Hyperlegible({ variable: "--font-body", subsets: ["latin", "latin-ext"], weight: ["400", "700"] });
@@ -10,8 +10,8 @@ const display = Fraunces({ variable: "--font-display", subsets: ["latin", "latin
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
-  title: { default: `${tr.appName} — ${tr.tagline}`, template: `%s · ${tr.appName}` },
-  description: "Şeflerin özel tarif defteri ve isteğe bağlı herkese açık tarif portalı.",
+  title: { default: `${t.appName} — ${t.tagline}`, template: `%s · ${t.appName}` },
+  description: "A private recipe book for chefs, with an optional public recipe portal.",
 };
 
 export const viewport: Viewport = {
@@ -25,19 +25,19 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="tr" className={`${body.variable} ${display.variable} h-full antialiased`}>
+    <html lang="en" className={`${body.variable} ${display.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        <a href="#icerik" className="sr-only-focusable btn-primary absolute left-2 top-2 z-50">
-          İçeriğe geç
+        <a href="#content" className="sr-only-focusable btn-primary absolute left-2 top-2 z-50">
+          Skip to content
         </a>
         <Providers>
           <SiteHeader />
-          <main id="icerik" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
+          <main id="content" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
             {children}
           </main>
         </Providers>
         <footer className="border-t border-border px-4 py-6 text-center text-sm text-muted">
-          {tr.appName} · Tarifler yazarlarına aittir.
+          {t.appName} · Recipes belong to their authors.
         </footer>
       </body>
     </html>

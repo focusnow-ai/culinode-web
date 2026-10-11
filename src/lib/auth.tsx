@@ -34,7 +34,7 @@ type AuthState = {
   ready: boolean;
   api: BrowserClient;
   signInWithGoogle: () => Promise<void>;
-  /** Yalnız Auth Emulator modunda: test hesabı ile giriş. */
+  /** Auth Emulator mode only: sign in with a test account. */
   signInWithEmulator?: (email: string, name: string) => Promise<void>;
   reauthenticate: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -71,16 +71,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       signInWithEmulator: emulator
         ? async (email: string, name: string) => {
-            // Emulator sahte Google kimliği kabul eder; gerçek sağlayıcı doğrulaması değildir.
+            // The emulator accepts a fake Google identity; this is not real provider verification.
             const fake = JSON.stringify({ sub: `emu-${email}`, email, name, email_verified: true });
             await signInWithCredential(firebaseAuth(), GoogleAuthProvider.credential(fake));
           }
         : undefined,
       async reauthenticate() {
         const u = firebaseAuth().currentUser;
-        if (!u) throw new Error("Oturum yok");
+        if (!u) throw new Error("Not signed in");
         if (emulator) {
-          // Emulator: aynı sahte kimlikle yeniden giriş auth_time'ı yeniler.
+          // Emulator: signing in again with the same fake identity refreshes auth_time.
           const fake = JSON.stringify({ sub: `emu-${u.email}`, email: u.email, name: u.displayName, email_verified: true });
           await signInWithCredential(firebaseAuth(), GoogleAuthProvider.credential(fake));
           return;
@@ -98,6 +98,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth(): AuthState {
   const v = useContext(Ctx);
-  if (!v) throw new Error("useAuth AuthProvider dışında kullanıldı");
+  if (!v) throw new Error("useAuth was used outside AuthProvider");
   return v;
 }

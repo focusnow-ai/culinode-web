@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { ApiError, serverPublicClient, unwrap, type PublicRecipe } from "./api/client";
 
-/** Aynı istek içinde metadata ve sayfa için tek API çağrısı (istekler arası cache yok). */
+/** A single API call for metadata and page within one request (no cross-request cache). */
 export const getPublicRecipe = cache(async (id: string): Promise<PublicRecipe | null> => {
   try {
     return await unwrap(serverPublicClient().GET("/v1/public/recipes/{recipeId}", { params: { path: { recipeId: id } } }));
@@ -33,7 +33,7 @@ export async function getDiscussions(id: string) {
   }
 }
 
-/** schema.org Recipe JSON-LD; yalnız yayınlanmış içerikten üretilir. */
+/** schema.org Recipe JSON-LD; built from published content only. */
 export function recipeJsonLd(r: PublicRecipe, siteUrl: string, imageUrl: string | null) {
   const iso = (m?: number | null) => (m ? `PT${m}M` : undefined);
   return {
@@ -42,7 +42,7 @@ export function recipeJsonLd(r: PublicRecipe, siteUrl: string, imageUrl: string 
     name: r.title,
     description: r.description ?? undefined,
     image: imageUrl ? [imageUrl] : undefined,
-    author: { "@type": "Person", name: r.author.displayName, url: `${siteUrl}/sef/${encodeURIComponent(r.author.id)}` },
+    author: { "@type": "Person", name: r.author.displayName, url: `${siteUrl}/chef/${encodeURIComponent(r.author.id)}` },
     datePublished: r.publishedAt,
     dateModified: r.updatedAt,
     prepTime: iso(r.prepMinutes),
@@ -52,7 +52,7 @@ export function recipeJsonLd(r: PublicRecipe, siteUrl: string, imageUrl: string 
     keywords: r.tags.join(", ") || undefined,
     recipeIngredient: r.ingredients.map((i) => {
       const q = i.quantity;
-      return [q.amount ?? "", q.unit ?? "", i.name, q.toTaste ? "(gerektiği kadar)" : ""].filter(Boolean).join(" ");
+      return [q.amount ?? "", q.unit ?? "", i.name, q.toTaste ? "(to taste)" : ""].filter(Boolean).join(" ");
     }),
     recipeInstructions: r.steps.map((s) => ({ "@type": "HowToStep", text: s.text })),
   };

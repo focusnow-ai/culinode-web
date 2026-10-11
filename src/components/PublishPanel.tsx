@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { ApiError, newId, unwrap, type Recipe } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
-import { problemMessage, tr } from "@/lib/i18n";
+import { problemMessage, t } from "@/lib/i18n";
 
-/** Kendi taslağı ile yayınlanan sürümü ayırır; yayınla / güncelle / kaldır yalnız online ve sunucu onaylı. */
+/** Separates the owner's draft from the published version; publish / update / unpublish are online only and server-confirmed. */
 export function PublishPanel({ recipe, dirty, onChanged }: { recipe: Recipe; dirty: boolean; onChanged: (r: Recipe) => void }) {
   const { api } = useAuth();
   const published = recipe.publication.status === "published";
@@ -25,7 +25,7 @@ export function PublishPanel({ recipe, dirty, onChanged }: { recipe: Recipe; dir
           body: { operationId: newId(), revision: recipe.revision, copyAllowed },
         }));
       } else {
-        if (!confirm("Tarif yayından kaldırılsın mı? Daha önce kopyalayanların kopyaları etkilenmez.")) return;
+        if (!confirm("Unpublish this recipe? Copies people already made are not affected.")) return;
         await unwrap(api.POST("/v1/recipes/{recipeId}/unpublish", { params: { path: { recipeId: recipe.id } }, body: { operationId: newId() } }));
       }
       onChanged(await unwrap(api.GET("/v1/recipes/{recipeId}", { params: { path: { recipeId: recipe.id } } })));
@@ -37,25 +37,25 @@ export function PublishPanel({ recipe, dirty, onChanged }: { recipe: Recipe; dir
   }
 
   return (
-    <section aria-labelledby="yayin" className="card flex flex-col gap-3">
-      <h2 id="yayin" className="text-xl font-bold">Yayın</h2>
+    <section aria-labelledby="publishing" className="card flex flex-col gap-3">
+      <h2 id="publishing" className="text-xl font-bold">Publishing</h2>
       <p>
-        Durum: <strong className={published ? "text-ok" : ""}>{published ? tr.publish.published : tr.publish.unpublished}</strong>
-        {published ? <> · <Link className="underline" href={`/tarif/${recipe.id}`}>Public sayfayı aç</Link></> : null}
+        Status: <strong className={published ? "text-ok" : ""}>{published ? t.publish.published : t.publish.unpublished}</strong>
+        {published ? <> · <Link className="underline" href={`/recipe/${recipe.id}`}>Open public page</Link></> : null}
       </p>
-      {draftNewer ? <p className="text-sm">{tr.publish.draftNewer}</p> : null}
-      <p className="text-sm text-muted">Özel notunuz hiçbir zaman yayınlanmaz.</p>
+      {draftNewer ? <p className="text-sm">{t.publish.draftNewer}</p> : null}
+      <p className="text-sm text-muted">Your private note is never published.</p>
       <label className="flex items-center gap-2">
         <input type="checkbox" checked={copyAllowed} onChange={(e) => setCopyAllowed(e.target.checked)} />
-        {tr.publish.copyAllowed}
+        {t.publish.copyAllowed}
       </label>
-      {dirty ? <p className="text-sm text-danger">Yayınlamadan önce değişiklikleri kaydedin.</p> : null}
+      {dirty ? <p className="text-sm text-danger">Save your changes before publishing.</p> : null}
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn-primary" disabled={busy || dirty} onClick={() => act("publish")}>
-          {published ? tr.publish.update : tr.publish.publish}
+          {published ? t.publish.update : t.publish.publish}
         </button>
         {published ? (
-          <button type="button" className="btn-danger" disabled={busy} onClick={() => act("unpublish")}>{tr.publish.unpublish}</button>
+          <button type="button" className="btn-danger" disabled={busy} onClick={() => act("unpublish")}>{t.publish.unpublish}</button>
         ) : null}
       </div>
       {error ? (

@@ -6,7 +6,7 @@ import { ErrorState, Loading } from "@/components/States";
 import { ApiError, newId, unwrap } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
 import { useAsync } from "@/lib/hooks";
-import { problemMessage, tr } from "@/lib/i18n";
+import { problemMessage, t } from "@/lib/i18n";
 
 export default function AccountPage() {
   const { api, reauthenticate, signOut } = useAuth();
@@ -24,76 +24,76 @@ export default function AccountPage() {
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
-      <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">{tr.nav.account}</h1>
+      <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">{t.nav.account}</h1>
       {msg ? <p role={msg.ok ? "status" : "alert"} className={msg.ok ? "text-ok" : "text-danger"}>{msg.text}</p> : null}
-      {p.status === "restricted" ? <p className="card border-danger">Hesabınız public etkileşim için kısıtlandı.</p> : null}
+      {p.status === "restricted" ? <p className="card border-danger">Your account is restricted from public interaction.</p> : null}
 
       <form className="card flex flex-col gap-3" onSubmit={async (e) => {
         e.preventDefault();
         try {
           await unwrap(api.PUT("/v1/me", { body: { displayName: name ?? p.displayName, bio: bio ?? p.bio } }));
-          setMsg({ ok: true, text: "Profil kaydedildi." });
+          setMsg({ ok: true, text: "Profile saved." });
           me.reload();
         } catch (err) { fail(err); }
       }}>
-        <h2 className="text-xl font-bold">Public şef profili</h2>
-        <label className="flex flex-col gap-1">Görünen ad
+        <h2 className="text-xl font-bold">Public chef profile</h2>
+        <label className="flex flex-col gap-1">Display name
           <input className="input" value={name ?? p.displayName} maxLength={60} onChange={(e) => setName(e.target.value)} required />
         </label>
         <label className="flex flex-col gap-1">Biyografi
           <textarea className="input min-h-24" value={bio ?? p.bio} maxLength={500} onChange={(e) => setBio(e.target.value)} />
         </label>
-        <p className="text-sm text-muted">E-posta adresiniz ve giriş yöntemleriniz public profilde görünmez.</p>
+        <p className="text-sm text-muted">Your email address and sign-in methods are not shown on your public profile.</p>
         <div className="flex gap-2">
-          <button className="btn-primary" type="submit">Kaydet</button>
-          <Link className="btn-ghost" href={`/sef/${encodeURIComponent(p.id)}`}>Public profili gör</Link>
+          <button className="btn-primary" type="submit">Save</button>
+          <Link className="btn-ghost" href={`/chef/${encodeURIComponent(p.id)}`}>View public profile</Link>
         </div>
       </form>
 
       <section className="card flex flex-col gap-2">
-        <h2 className="text-xl font-bold">Giriş yöntemleri</h2>
-        <p>Bağlı: {p.providers.map((x) => (x === "google.com" ? "Google" : x === "apple.com" ? "Apple" : x)).join(", ")}</p>
+        <h2 className="text-xl font-bold">Sign-in methods</h2>
+        <p>Linked: {p.providers.map((x) => (x === "google.com" ? "Google" : x === "apple.com" ? "Apple" : x)).join(", ")}</p>
         <p className="text-sm text-muted">
-          Apple ile iOS&apos;tan giriş yapan kullanıcılar, aynı deftere web ve Android&apos;den erişmek için iOS uygulamasında
-          Hesap → Google hesabını bağla adımını kullanır. Hesaplar e-posta eşleşmesiyle otomatik birleştirilmez.
+          Users who sign in with Apple on iOS use Account → Link Google account in the iOS app to reach the same
+          recipe book from the web and Android. Accounts are never merged automatically by matching email.
         </p>
       </section>
 
       <section className="card flex flex-col gap-2">
-        <h2 className="text-xl font-bold">Verilerimi dışa aktar</h2>
-        <p className="text-sm">Tarifleriniz (özel notlar dahil), koleksiyonlarınız ve yorumlarınız JSON dosyası olarak hazırlanır. Bağlantı kısa sürelidir.</p>
+        <h2 className="text-xl font-bold">Export my data</h2>
+        <p className="text-sm">Your recipes (including private notes), collections and comments are prepared as a JSON file. The link is short-lived.</p>
         <button type="button" className="btn-ghost self-start" onClick={async () => {
           try {
             let job = await unwrap(api.POST("/v1/me/export", { body: { operationId: exportOp } }));
             for (let i = 0; i < 20 && job.status !== "completed" && job.status !== "failed"; i++) {
-              setMsg({ ok: true, text: "Dışa aktarma hazırlanıyor…" });
+              setMsg({ ok: true, text: "Preparing the export…" });
               await new Promise((r) => setTimeout(r, 1500 + i * 500));
               job = await unwrap(api.GET("/v1/me/export/{jobId}", { params: { path: { jobId: job.id } } }));
             }
-            if (job.downloadUrl) { setExportUrl(job.downloadUrl); setMsg({ ok: true, text: "Dosya hazır." }); }
-            else setMsg({ ok: false, text: "Dışa aktarma henüz hazır değil; daha sonra tekrar deneyin." });
+            if (job.downloadUrl) { setExportUrl(job.downloadUrl); setMsg({ ok: true, text: "The file is ready." }); }
+            else setMsg({ ok: false, text: "The export is not ready yet; please try again later." });
           } catch (err) { fail(err); }
-        }}>Dışa aktarmayı başlat</button>
-        {exportUrl ? <a className="btn-primary self-start" href={exportUrl} rel="noopener">Dosyayı indir</a> : null}
+        }}>Start export</button>
+        {exportUrl ? <a className="btn-primary self-start" href={exportUrl} rel="noopener">Download file</a> : null}
       </section>
 
       <section className="card flex flex-col gap-2 border-danger">
-        <h2 className="text-xl font-bold text-danger">Hesabı sil</h2>
+        <h2 className="text-xl font-bold text-danger">Delete account</h2>
         <p className="text-sm">
-          Silme başlayınca yayınlarınız hemen kapanır, oturumlarınız sonlanır ve tüm verileriniz kalıcı olarak silinir.
-          Daha önce izin verip başkalarının deftere kopyaladığı tarifler onlarda kalır; adınız &quot;Silinmiş kullanıcı&quot; olarak görünür.
+          Once deletion starts, your publications close immediately, your sessions end and all your data is permanently deleted.
+          Recipes others copied with your permission stay with them; your name will show as &quot;Deleted user&quot;.
         </p>
         <button type="button" className="btn-danger self-start" onClick={async () => {
-          if (!confirm("Hesabınız ve tüm tarifleriniz kalıcı olarak silinecek. Emin misiniz?")) return;
+          if (!confirm("Your account and all your recipes will be permanently deleted. Are you sure?")) return;
           try {
-            await reauthenticate(); // yakın tarihli giriş zorunlu
+            await reauthenticate(); // a recent sign-in is required
             await unwrap(api.POST("/v1/me/deletion", { body: { operationId: newId() } }));
-            setMsg({ ok: true, text: "Hesap silme başlatıldı." });
+            setMsg({ ok: true, text: "Account deletion started." });
             await signOut();
           } catch (err) { fail(err); }
-        }}>Hesabımı sil</button>
+        }}>Delete my account</button>
       </section>
-      {p.isModerator ? <Link className="btn-ghost self-start" href="/moderasyon">{tr.nav.moderation}</Link> : null}
+      {p.isModerator ? <Link className="btn-ghost self-start" href="/moderation">{t.nav.moderation}</Link> : null}
     </div>
   );
 }

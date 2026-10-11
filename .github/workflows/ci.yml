@@ -30,7 +30,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Üretilen API tipleri sözleşme kopyasıyla güncel mi
+      - name: Generated API types match the contract copy
         run: |
           npm run gen:api
           git diff --exit-code src/lib/api/schema.d.ts

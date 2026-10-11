@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Yerel uçtan uca testler: çalışan API (func :7071), Auth Emulator (:9099) ve web (:3000) gerekir.
-// Bkz. docs/LOCAL_DEVELOPMENT.md. Bu testler [emulator] sonucudur.
+// Local end-to-end tests: need a running API (func :7071), Auth Emulator (:9099) and web (:3000).
+// See docs/LOCAL_DEVELOPMENT.md. These tests produce [emulator] results.
 export default defineConfig({
   testDir: "e2e",
   timeout: 60_000,

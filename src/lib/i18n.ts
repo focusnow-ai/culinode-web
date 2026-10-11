@@ -1,67 +1,67 @@
-// İlk UI dili Türkçe; metinler tek sözlükte, yerelleştirmeye hazır.
+// UI strings live in a single dictionary, ready for localization.
 import type { Unit } from "./api/client";
 
-export const tr = {
+export const t = {
   appName: "Culinode",
-  tagline: "Şefin özel tarif defteri",
+  tagline: "A chef's private recipe book",
   nav: {
-    discover: "Keşfet",
-    notebook: "Defterim",
-    favorites: "Favoriler",
-    notifications: "Bildirimler",
-    account: "Hesap",
-    signIn: "Giriş yap",
-    signOut: "Çıkış",
-    moderation: "Moderasyon",
+    discover: "Discover",
+    notebook: "My recipes",
+    favorites: "Favorites",
+    notifications: "Notifications",
+    account: "Account",
+    signIn: "Sign in",
+    signOut: "Sign out",
+    moderation: "Moderation",
   },
   states: {
-    loading: "Yükleniyor…",
-    empty: "Henüz bir şey yok.",
-    error: "Bir sorun oluştu.",
-    retry: "Tekrar dene",
-    unauthorized: "Bu sayfa için giriş yapmalısınız.",
-    forbidden: "Bu içeriğe erişim yetkiniz yok.",
-    notFound: "Aradığınız içerik bulunamadı veya yayından kaldırıldı.",
-    offline: "Bağlantı yok. Değişiklikler kaydedilmedi.",
+    loading: "Loading…",
+    empty: "Nothing here yet.",
+    error: "Something went wrong.",
+    retry: "Try again",
+    unauthorized: "You need to sign in to view this page.",
+    forbidden: "You don't have access to this content.",
+    notFound: "The content you're looking for was not found or has been unpublished.",
+    offline: "You're offline. Changes were not saved.",
   },
   recipe: {
-    title: "Tarif adı",
-    description: "Açıklama",
-    yield: "Porsiyon / çıktı",
-    prep: "Hazırlık (dk)",
-    cook: "Pişirme (dk)",
-    ingredients: "Malzemeler",
-    steps: "Yapılışı",
-    tags: "Etiketler",
-    privateNote: "Özel not (yalnız siz görürsünüz)",
-    cover: "Kapak fotoğrafı",
-    toTaste: "gerektiği kadar",
-    addIngredient: "Malzeme ekle",
-    addStep: "Adım ekle",
-    save: "Kaydet",
-    saving: "Kaydediliyor…",
-    saved: "Kaydedildi",
-    unsaved: "Kaydedilmedi",
-    delete: "Sil",
-    minutes: "dk",
-    copiedFrom: "Kaynak",
+    title: "Recipe title",
+    description: "Description",
+    yield: "Servings / yield",
+    prep: "Prep (min)",
+    cook: "Cook (min)",
+    ingredients: "Ingredients",
+    steps: "Method",
+    tags: "Tags",
+    privateNote: "Private note (only you can see this)",
+    cover: "Cover photo",
+    toTaste: "to taste",
+    addIngredient: "Add ingredient",
+    addStep: "Add step",
+    save: "Save",
+    saving: "Saving…",
+    saved: "Saved",
+    unsaved: "Not saved",
+    delete: "Delete",
+    minutes: "min",
+    copiedFrom: "Source",
   },
   publish: {
-    publish: "Yayınla",
-    update: "Yayını güncelle",
-    unpublish: "Yayından kaldır",
-    published: "Yayında",
-    unpublished: "Özel",
-    copyAllowed: "Okuyucular deftere kopyalayabilsin",
-    draftNewer: "Taslakta yayınlanmamış değişiklikler var.",
-    copyNotRepublishable: "Kopyalanan tarifler yeniden yayınlanamaz.",
+    publish: "Publish",
+    update: "Update publication",
+    unpublish: "Unpublish",
+    published: "Published",
+    unpublished: "Private",
+    copyAllowed: "Let readers copy it to their recipe book",
+    draftNewer: "The draft has unpublished changes.",
+    copyNotRepublishable: "Copied recipes cannot be republished.",
   },
   conflict: {
-    title: "Tarif başka bir yerde değişti",
-    body: "Sunucudaki sürüm sizin düzenlemenizden farklı. Hiçbir sürüm silinmedi.",
-    useRemote: "Sunucudaki sürümü kullan",
-    keepLocalAsNew: "Benim sürümümü yeni tarif olarak sakla",
-    overwrite: "Benim sürümümle üzerine yaz",
+    title: "This recipe changed somewhere else",
+    body: "The version on the server differs from your edit. No version was deleted.",
+    useRemote: "Use the server version",
+    keepLocalAsNew: "Keep my version as a new recipe",
+    overwrite: "Overwrite with my version",
   },
 } as const;
 
@@ -71,62 +71,62 @@ export const unitLabels: Record<Unit, string> = {
   mg: "mg",
   ml: "ml",
   l: "l",
-  tsp: "çay kaşığı",
-  tbsp: "yemek kaşığı",
-  cup: "su bardağı",
-  piece: "adet",
-  pinch: "tutam",
-  slice: "dilim",
-  clove: "diş",
-  bunch: "demet",
-  can: "kutu",
-  pack: "paket",
+  tsp: "tsp",
+  tbsp: "tbsp",
+  cup: "cup",
+  piece: "pc",
+  pinch: "pinch",
+  slice: "slice",
+  clove: "clove",
+  bunch: "bunch",
+  can: "can",
+  pack: "pack",
   cm: "cm",
-  serving: "servis",
-  portion: "porsiyon",
+  serving: "serving",
+  portion: "portion",
   other: "",
 };
 
 export function formatQuantity(q: { amount?: number | null; unit?: Unit | null; toTaste: boolean }): string {
-  if (q.toTaste && (q.amount == null)) return tr.recipe.toTaste;
-  const amount = q.amount == null ? "" : new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(q.amount);
+  if (q.toTaste && (q.amount == null)) return t.recipe.toTaste;
+  const amount = q.amount == null ? "" : new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(q.amount);
   const unit = q.unit ? unitLabels[q.unit] : "";
-  return [amount, unit, q.toTaste ? `(${tr.recipe.toTaste})` : ""].filter(Boolean).join(" ");
+  return [amount, unit, q.toTaste ? `(${t.recipe.toTaste})` : ""].filter(Boolean).join(" ");
 }
 
 export function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium" }).format(new Date(iso));
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(iso));
 }
 
 export function problemMessage(code: string | undefined, fallback?: string): string {
   switch (code) {
     case "network":
-      return tr.states.offline;
+      return t.states.offline;
     case "unauthenticated":
-      return "Oturumunuzun süresi doldu. Lütfen yeniden giriş yapın.";
+      return "Your session has expired. Please sign in again.";
     case "forbidden":
-      return tr.states.forbidden;
+      return t.states.forbidden;
     case "not-found":
-      return tr.states.notFound;
+      return t.states.notFound;
     case "revision-conflict":
-      return tr.conflict.title;
+      return t.conflict.title;
     case "rate-limited":
-      return "Çok fazla istek gönderildi; biraz sonra tekrar deneyin.";
+      return "Too many requests; please try again shortly.";
     case "not-publishable":
-      return "Tarif yayın için eksik.";
+      return "The recipe is incomplete for publishing.";
     case "media-not-ready":
-      return "Fotoğraf henüz işlenmedi; biraz sonra tekrar deneyin.";
+      return "The photo has not been processed yet; please try again shortly.";
     case "copy-not-allowed":
-      return "Yazar bu tarifin kopyalanmasına izin vermiyor.";
+      return "The author does not allow copying this recipe.";
     case "blocked":
-      return "Bu kullanıcıyla etkileşim kuramazsınız.";
+      return "You cannot interact with this user.";
     case "account-restricted":
-      return "Hesabınız public etkileşim için kısıtlandı.";
+      return "Your account is restricted from public interaction.";
     case "account-deleting":
-      return "Hesap silme işlemi sürüyor.";
+      return "Account deletion is in progress.";
     case "recent-login-required":
-      return "Bu işlem için yeniden giriş yapmanız gerekiyor.";
+      return "Please sign in again to do this.";
     default:
-      return fallback ?? tr.states.error;
+      return fallback ?? t.states.error;
   }
 }

@@ -4,26 +4,26 @@ import { notFound } from "next/navigation";
 import { PublicRecipeActions } from "@/components/PublicRecipeActions";
 import { DiscussionThread } from "@/components/DiscussionThread";
 import { apiUrl } from "@/lib/api/client";
-import { formatDate, formatQuantity, tr } from "@/lib/i18n";
+import { formatDate, formatQuantity, t } from "@/lib/i18n";
 import { getDiscussions, getPublicRecipe, recipeJsonLd } from "@/lib/public-data";
 
-// Yayın durumu her istekte kontrol edilir: yayından kalkan tarif bir sonraki istekte 404 olur.
+// Publication status is checked on every request: an unpublished recipe returns 404 on the next request.
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: PageProps<"/tarif/[id]">): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps<"/recipe/[id]">): Promise<Metadata> {
   const { id } = await params;
   const r = await getPublicRecipe(id);
-  if (!r) return { title: "Tarif bulunamadı", robots: { index: false } };
+  if (!r) return { title: "Recipe not found", robots: { index: false } };
   const image = r.cover ? apiUrl(r.cover.largeUrl) : undefined;
   return {
     title: r.title,
-    description: r.description ?? `${r.author.displayName} tarafından paylaşılan tarif.`,
-    alternates: { canonical: `/tarif/${r.id}` },
+    description: r.description ?? `A recipe shared by ${r.author.displayName}.`,
+    alternates: { canonical: `/recipe/${r.id}` },
     openGraph: { type: "article", title: r.title, description: r.description ?? undefined, images: image ? [image] : undefined },
   };
 }
 
-export default async function RecipePage({ params }: PageProps<"/tarif/[id]">) {
+export default async function RecipePage({ params }: PageProps<"/recipe/[id]">) {
   const { id } = await params;
   const r = await getPublicRecipe(id);
   if (!r) notFound();
@@ -37,7 +37,7 @@ export default async function RecipePage({ params }: PageProps<"/tarif/[id]">) {
       <header className="flex flex-col gap-2">
         <h1 className="font-[family-name:var(--font-display)] text-4xl font-bold">{r.title}</h1>
         <p className="text-muted">
-          <Link href={`/sef/${encodeURIComponent(r.author.id)}`} className="font-semibold underline-offset-2 hover:underline">
+          <Link href={`/chef/${encodeURIComponent(r.author.id)}`} className="font-semibold underline-offset-2 hover:underline">
             {r.author.displayName}
           </Link>{" "}
           · {formatDate(r.publishedAt)}
@@ -45,13 +45,13 @@ export default async function RecipePage({ params }: PageProps<"/tarif/[id]">) {
         {r.description ? <p className="text-lg">{r.description}</p> : null}
         <dl className="flex flex-wrap gap-4 text-sm">
           {r.yield?.amount ? (
-            <div><dt className="inline font-semibold">{tr.recipe.yield}: </dt><dd className="inline">{r.yield.amount} {r.yield.unit}</dd></div>
+            <div><dt className="inline font-semibold">{t.recipe.yield}: </dt><dd className="inline">{r.yield.amount} {r.yield.unit}</dd></div>
           ) : null}
           {r.prepMinutes ? (
-            <div><dt className="inline font-semibold">Hazırlık: </dt><dd className="inline">{r.prepMinutes} {tr.recipe.minutes}</dd></div>
+            <div><dt className="inline font-semibold">Prep: </dt><dd className="inline">{r.prepMinutes} {t.recipe.minutes}</dd></div>
           ) : null}
           {r.cookMinutes ? (
-            <div><dt className="inline font-semibold">Pişirme: </dt><dd className="inline">{r.cookMinutes} {tr.recipe.minutes}</dd></div>
+            <div><dt className="inline font-semibold">Cook: </dt><dd className="inline">{r.cookMinutes} {t.recipe.minutes}</dd></div>
           ) : null}
         </dl>
       </header>
@@ -61,8 +61,8 @@ export default async function RecipePage({ params }: PageProps<"/tarif/[id]">) {
       ) : null}
       <PublicRecipeActions recipeId={r.id} authorId={r.author.id} copyAllowed={r.copyAllowed} />
       <div className="grid gap-6 md:grid-cols-[1fr_2fr]">
-        <section aria-labelledby="malzemeler" className="card">
-          <h2 id="malzemeler" className="mb-3 text-2xl font-bold">{tr.recipe.ingredients}</h2>
+        <section aria-labelledby="ingredients" className="card">
+          <h2 id="ingredients" className="mb-3 text-2xl font-bold">{t.recipe.ingredients}</h2>
           <ul className="flex flex-col gap-2">
             {r.ingredients.map((i) => (
               <li key={i.id} className="flex flex-col">
@@ -72,8 +72,8 @@ export default async function RecipePage({ params }: PageProps<"/tarif/[id]">) {
             ))}
           </ul>
         </section>
-        <section aria-labelledby="yapilis" className="card">
-          <h2 id="yapilis" className="mb-3 text-2xl font-bold">{tr.recipe.steps}</h2>
+        <section aria-labelledby="method" className="card">
+          <h2 id="method" className="mb-3 text-2xl font-bold">{t.recipe.steps}</h2>
           <ol className="flex list-decimal flex-col gap-3 pl-6">
             {r.steps.map((s) => (
               <li key={s.id} className="text-lg">{s.text}</li>
@@ -82,7 +82,7 @@ export default async function RecipePage({ params }: PageProps<"/tarif/[id]">) {
         </section>
       </div>
       {r.tags.length > 0 ? (
-        <ul className="flex flex-wrap gap-2" aria-label={tr.recipe.tags}>
+        <ul className="flex flex-wrap gap-2" aria-label={t.recipe.tags}>
           {r.tags.map((t) => (
             <li key={t}><Link className="rounded-full border border-border px-3 py-1" href={`/?tag=${encodeURIComponent(t)}`}>#{t}</Link></li>
           ))}
