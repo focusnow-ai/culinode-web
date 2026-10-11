@@ -36,7 +36,7 @@ test("public recipe SSR: content, JSON-LD, no private note, accessibility", asyn
 test("web recipe book: create → save (server confirmed) → on network loss 'Not saved' and text is kept", async ({ page }) => {
   await signIn(page, `ed-${uid()}@example.com`);
   await axe(page);
-  await page.getByRole("link", { name: "+ New recipe" }).click();
+  await page.getByRole("link", { name: "New recipe" }).click();
   const title = `Web recipe ${uid()}`;
   await page.getByLabel("Recipe title").fill(title);
   await page.getByLabel("Ingredient 1 name").fill("Bulgur");

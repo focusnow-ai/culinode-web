@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ApiError, newId, unwrap, type Recipe } from "@/lib/api/client";
+import { ArrowSquareOut, Globe, Lock } from "@phosphor-icons/react/ssr";
 import { useAuth } from "@/lib/auth";
 import { problemMessage, t } from "@/lib/i18n";
 
@@ -37,19 +38,30 @@ export function PublishPanel({ recipe, dirty, onChanged }: { recipe: Recipe; dir
   }
 
   return (
-    <section aria-labelledby="publishing" className="card flex flex-col gap-3">
-      <h2 id="publishing" className="text-xl font-bold">Publishing</h2>
-      <p>
-        Status: <strong className={published ? "text-ok" : ""}>{published ? t.publish.published : t.publish.unpublished}</strong>
-        {published ? <> · <Link className="underline" href={`/recipe/${recipe.id}`}>Open public page</Link></> : null}
-      </p>
-      {draftNewer ? <p className="text-sm">{t.publish.draftNewer}</p> : null}
+    <section aria-labelledby="publishing" className="card flex flex-col gap-4 p-5 sm:p-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 id="publishing" className="section-title mr-auto">Publishing</h2>
+        <p className="flex flex-wrap items-center gap-3">
+          <span className="sr-only">Status: </span>
+          {published ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-ok-soft px-3 py-1 text-sm font-semibold text-ok"><Globe size={16} aria-hidden />{t.publish.published}</span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-sunken px-3 py-1 text-sm font-semibold text-muted"><Lock size={16} aria-hidden />{t.publish.unpublished}</span>
+          )}
+          {published ? (
+            <Link className="inline-flex items-center gap-1 text-sm font-semibold text-accent-ink underline underline-offset-4" href={`/recipe/${recipe.id}`}>
+              Open public page<ArrowSquareOut size={16} aria-hidden />
+            </Link>
+          ) : null}
+        </p>
+      </div>
+      {draftNewer ? <p className="rounded-xl bg-accent-soft px-4 py-2.5 text-sm font-medium text-accent-ink">{t.publish.draftNewer}</p> : null}
       <p className="text-sm text-muted">Your private note is never published.</p>
-      <label className="flex items-center gap-2">
+      <label className="flex min-h-11 items-center gap-3">
         <input type="checkbox" checked={copyAllowed} onChange={(e) => setCopyAllowed(e.target.checked)} />
         {t.publish.copyAllowed}
       </label>
-      {dirty ? <p className="text-sm text-danger">Save your changes before publishing.</p> : null}
+      {dirty ? <p className="text-sm font-medium text-danger">Save your changes before publishing.</p> : null}
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn-primary" disabled={busy || dirty} onClick={() => act("publish")}>
           {published ? t.publish.update : t.publish.publish}

@@ -8,6 +8,7 @@ import {
 } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
 import { problemMessage, t, unitLabels } from "@/lib/i18n";
+import { ArrowDown, ArrowUp, Camera, Plus, Trash, X } from "@phosphor-icons/react/ssr";
 import { PublishPanel } from "./PublishPanel";
 
 const emptyContent = (): RecipeContent => ({
@@ -123,10 +124,11 @@ export function RecipeEditor({ initial }: { initial: Recipe | null }) {
   const err = (f: string) => fieldErrors[f]?.join(" ");
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
-        <h1 className="flex-1 font-[family-name:var(--font-display)] text-2xl font-bold">{recipe ? "Edit recipe" : "New recipe"}</h1>
-        <SaveIndicator state={save} />
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+      {/* Save bar: pinned to the bottom on phones (thumb reach), under the site header on wider screens. */}
+      <h1 className="page-title">{recipe ? "Edit recipe" : "New recipe"}</h1>
+      <div className="sticky bottom-0 z-20 order-last -mx-4 -mt-3 flex items-center justify-end gap-3 border-t border-border bg-background/90 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6 md:top-16 md:bottom-auto md:order-none md:mx-0 md:border-t-0 md:border-b md:px-0">
+        <span className="mr-auto"><SaveIndicator state={save} /></span>
         <button type="button" className="btn-primary" disabled={save.kind === "saving" || save.kind === "clean" || save.kind === "saved"} onClick={() => doSave()}>
           {save.kind === "saving" ? t.recipe.saving : t.recipe.save}
         </button>
@@ -147,20 +149,20 @@ export function RecipeEditor({ initial }: { initial: Recipe | null }) {
       ) : null}
 
       {recipe?.source ? (
-        <p className="card text-sm">
-          {t.recipe.copiedFrom}: <strong>{recipe.source.authorDisplayName}</strong> — this is an independent private copy.
+        <p className="rounded-xl bg-sunken px-4 py-3 text-sm">
+          {t.recipe.copiedFrom}: <strong>{recipe.source.authorDisplayName}</strong>. This is an independent private copy.
         </p>
       ) : null}
 
-      <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); doSave(); }} noValidate>
+      <form className="flex flex-col gap-6" onSubmit={(e) => { e.preventDefault(); doSave(); }} noValidate>
         <Field label={t.recipe.title} error={err("title")}>
-          <input className="input text-xl" value={content.title} maxLength={120} onChange={(e) => update({ title: e.target.value })} />
+          <input className="input font-display text-2xl font-bold" value={content.title} maxLength={120} onChange={(e) => update({ title: e.target.value })} />
         </Field>
         <Field label={t.recipe.description} error={err("description")}>
           <textarea className="input min-h-20" value={content.description ?? ""} maxLength={2000} onChange={(e) => update({ description: e.target.value || null })} />
         </Field>
         <CoverPicker mediaId={content.coverMediaId ?? null} onChange={(id) => update({ coverMediaId: id })} />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Field label="Servings" error={err("yield.amount")}>
             <input className="input" type="number" min={0} inputMode="decimal" value={content.yield?.amount ?? ""} onChange={(e) => update({ yield: { ...content.yield, amount: e.target.value === "" ? null : Number(e.target.value) } })} />
           </Field>
@@ -190,11 +192,11 @@ export function RecipeEditor({ initial }: { initial: Recipe | null }) {
         <>
           <CollectionMembership recipeId={recipe.id} />
           {isCopy ? (
-            <p className="card text-sm text-muted">{t.publish.copyNotRepublishable}</p>
+            <p className="rounded-xl bg-sunken px-4 py-3 text-sm text-muted">{t.publish.copyNotRepublishable}</p>
           ) : (
             <PublishPanel recipe={recipe} dirty={dirty} onChanged={setRecipe} />
           )}
-          <button type="button" className="btn-danger self-start" onClick={remove}>{t.recipe.delete}</button>
+          <button type="button" className="btn-danger self-start" onClick={remove}><Trash size={18} aria-hidden />{t.recipe.delete}</button>
         </>
       ) : null}
     </div>
@@ -210,15 +212,15 @@ function SaveIndicator({ state }: { state: SaveState }) {
     : state.kind === "conflict" ? t.conflict.title
     : "";
   const tone = state.kind === "saved" ? "text-ok" : state.kind === "error" || state.kind === "conflict" ? "text-danger" : "text-muted";
-  return <span role="status" aria-live="polite" className={`text-sm ${tone}`}>{text}</span>;
+  return <span role="status" aria-live="polite" className={`text-sm font-medium ${tone}`}>{text}</span>;
 }
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="font-semibold">{label}</span>
+    <label className="flex flex-col gap-2">
+      <span className="field-label">{label}</span>
       {children}
-      {error ? <span className="text-sm text-danger">{error}</span> : null}
+      {error ? <span className="text-sm font-medium text-danger">{error}</span> : null}
     </label>
   );
 }
@@ -234,41 +236,42 @@ function move<T>(arr: T[], i: number, d: number): T[] {
 function IngredientsEditor({ items, errors, onChange }: { items: Ingredient[]; errors: Record<string, string[]>; onChange: (v: Ingredient[]) => void }) {
   const set = (i: number, patch: Partial<Ingredient>) => onChange(items.map((x, k) => (k === i ? { ...x, ...patch } : x)));
   return (
-    <fieldset className="card flex flex-col gap-3">
-      <legend className="px-1 text-xl font-bold">{t.recipe.ingredients}</legend>
-      <ol className="flex flex-col gap-3">
+    <fieldset className="card flex flex-col gap-4 p-5 sm:p-6">
+      <legend className="float-left mb-1 w-full section-title">{t.recipe.ingredients}</legend>
+      <ol className="clear-both flex flex-col divide-y divide-border">
         {items.map((ing, i) => (
-          <li key={ing.id} className="grid grid-cols-[4.5rem_8rem_1fr] items-start gap-2 sm:grid-cols-[5rem_9rem_1fr_auto]">
+          <li key={ing.id} className="grid grid-cols-[5rem_1fr] items-start gap-2 py-4 first:pt-0 sm:grid-cols-[5rem_8.5rem_1fr_auto]">
             <input aria-label={`Ingredient ${i + 1} amount`} className="input" type="number" min={0} step="any" inputMode="decimal"
               value={ing.quantity.amount ?? ""} disabled={ing.quantity.toTaste && ing.quantity.amount == null}
               onChange={(e) => set(i, { quantity: { ...ing.quantity, amount: e.target.value === "" ? null : Number(e.target.value) } })} />
             <select aria-label={`Ingredient ${i + 1} unit`} className="input" value={ing.quantity.unit ?? ""}
               onChange={(e) => set(i, { quantity: { ...ing.quantity, unit: (e.target.value || null) as Unit | null } })}>
-              <option value="">—</option>
+              <option value="">No unit</option>
               {(Object.keys(unitLabels) as Unit[]).filter((u) => u !== "other").map((u) => <option key={u} value={u}>{unitLabels[u]}</option>)}
             </select>
-            <div className="flex flex-col gap-1">
+            <div className="col-span-2 flex flex-col gap-1 sm:col-span-1">
               <input aria-label={`Ingredient ${i + 1} name`} className="input" value={ing.name} maxLength={120} placeholder="e.g. red lentils" onChange={(e) => set(i, { name: e.target.value })} />
-              <input aria-label={`Ingredient ${i + 1} note`} className="input text-sm" value={ing.note ?? ""} maxLength={200} placeholder="note (optional)" onChange={(e) => set(i, { note: e.target.value || null })} />
-              <label className="flex items-center gap-2 text-sm">
+              <input aria-label={`Ingredient ${i + 1} note`} className="input min-h-10 py-1.5 text-sm" value={ing.note ?? ""} maxLength={200} placeholder="note (optional)" onChange={(e) => set(i, { note: e.target.value || null })} />
+              <label className="flex min-h-9 items-center gap-2 text-sm">
                 <input type="checkbox" checked={ing.quantity.toTaste} onChange={(e) => set(i, { quantity: { ...ing.quantity, toTaste: e.target.checked } })} />
                 {t.recipe.toTaste}
               </label>
               {errors[`ingredients[${i}].quantity`] || errors[`ingredients[${i}].name`] ? (
-                <span className="text-sm text-danger">{[...(errors[`ingredients[${i}].name`] ?? []), ...(errors[`ingredients[${i}].quantity`] ?? [])].join(" ")}</span>
+                <span className="text-sm font-medium text-danger">{[...(errors[`ingredients[${i}].name`] ?? []), ...(errors[`ingredients[${i}].quantity`] ?? [])].join(" ")}</span>
               ) : null}
             </div>
-            <div className="col-span-3 flex gap-1 sm:col-span-1">
-              <button type="button" className="btn-ghost px-2" aria-label={`Move ingredient ${i + 1} up`} onClick={() => onChange(move(items, i, -1))} disabled={i === 0}>↑</button>
-              <button type="button" className="btn-ghost px-2" aria-label={`Move ingredient ${i + 1} down`} onClick={() => onChange(move(items, i, 1))} disabled={i === items.length - 1}>↓</button>
-              <button type="button" className="btn-ghost px-2" aria-label={`Delete ingredient ${i + 1}`} onClick={() => onChange(items.filter((_, k) => k !== i))}>✕</button>
+            <div className="col-span-2 -mt-2 flex justify-end gap-0.5 sm:col-span-1 sm:mt-0">
+              <button type="button" className="btn-icon" aria-label={`Move ingredient ${i + 1} up`} onClick={() => onChange(move(items, i, -1))} disabled={i === 0}><ArrowUp size={18} aria-hidden /></button>
+              <button type="button" className="btn-icon" aria-label={`Move ingredient ${i + 1} down`} onClick={() => onChange(move(items, i, 1))} disabled={i === items.length - 1}><ArrowDown size={18} aria-hidden /></button>
+              <button type="button" className="btn-icon hover:text-danger" aria-label={`Delete ingredient ${i + 1}`} onClick={() => onChange(items.filter((_, k) => k !== i))}><X size={18} aria-hidden /></button>
             </div>
           </li>
         ))}
       </ol>
-      {errors.ingredients ? <p className="text-sm text-danger">{errors.ingredients.join(" ")}</p> : null}
+      {errors.ingredients ? <p className="text-sm font-medium text-danger">{errors.ingredients.join(" ")}</p> : null}
       <button type="button" className="btn-ghost self-start" onClick={() => onChange([...items, { id: newId(), name: "", quantity: { amount: null, unit: null, toTaste: false }, note: null }])}>
-        + {t.recipe.addIngredient}
+        <Plus size={18} weight="bold" aria-hidden />
+        {t.recipe.addIngredient}
       </button>
     </fieldset>
   );
@@ -276,24 +279,24 @@ function IngredientsEditor({ items, errors, onChange }: { items: Ingredient[]; e
 
 function StepsEditor({ items, errors, onChange }: { items: Step[]; errors: Record<string, string[]>; onChange: (v: Step[]) => void }) {
   return (
-    <fieldset className="card flex flex-col gap-3">
-      <legend className="px-1 text-xl font-bold">{t.recipe.steps}</legend>
-      <ol className="flex flex-col gap-3">
+    <fieldset className="card flex flex-col gap-4 p-5 sm:p-6">
+      <legend className="float-left mb-1 w-full section-title">{t.recipe.steps}</legend>
+      <ol className="clear-both flex flex-col gap-4">
         {items.map((s, i) => (
-          <li key={s.id} className="flex items-start gap-2">
-            <span className="mt-2 w-6 font-bold" aria-hidden>{i + 1}.</span>
+          <li key={s.id} className="flex items-start gap-3">
+            <span className="mt-2 grid size-9 shrink-0 place-items-center rounded-full border-2 border-accent font-mono text-sm font-medium text-accent-ink" aria-hidden>{i + 1}</span>
             <textarea aria-label={`Step ${i + 1}`} className="input min-h-20 flex-1" value={s.text} maxLength={2000}
               onChange={(e) => onChange(items.map((x, k) => (k === i ? { ...x, text: e.target.value } : x)))} />
-            <div className="flex flex-col gap-1">
-              <button type="button" className="btn-ghost px-2" aria-label={`Move step ${i + 1} up`} onClick={() => onChange(move(items, i, -1))} disabled={i === 0}>↑</button>
-              <button type="button" className="btn-ghost px-2" aria-label={`Move step ${i + 1} down`} onClick={() => onChange(move(items, i, 1))} disabled={i === items.length - 1}>↓</button>
-              <button type="button" className="btn-ghost px-2" aria-label={`Delete step ${i + 1}`} onClick={() => onChange(items.filter((_, k) => k !== i))}>✕</button>
+            <div className="flex flex-col">
+              <button type="button" className="btn-icon" aria-label={`Move step ${i + 1} up`} onClick={() => onChange(move(items, i, -1))} disabled={i === 0}><ArrowUp size={18} aria-hidden /></button>
+              <button type="button" className="btn-icon" aria-label={`Move step ${i + 1} down`} onClick={() => onChange(move(items, i, 1))} disabled={i === items.length - 1}><ArrowDown size={18} aria-hidden /></button>
+              <button type="button" className="btn-icon hover:text-danger" aria-label={`Delete step ${i + 1}`} onClick={() => onChange(items.filter((_, k) => k !== i))}><X size={18} aria-hidden /></button>
             </div>
           </li>
         ))}
       </ol>
-      {errors.steps ? <p className="text-sm text-danger">{errors.steps.join(" ")}</p> : null}
-      <button type="button" className="btn-ghost self-start" onClick={() => onChange([...items, { id: newId(), text: "" }])}>+ {t.recipe.addStep}</button>
+      {errors.steps ? <p className="text-sm font-medium text-danger">{errors.steps.join(" ")}</p> : null}
+      <button type="button" className="btn-ghost self-start" onClick={() => onChange([...items, { id: newId(), text: "" }])}><Plus size={18} weight="bold" aria-hidden />{t.recipe.addStep}</button>
     </fieldset>
   );
 }
@@ -353,19 +356,24 @@ function CoverPicker({ mediaId, onChange }: { mediaId: string | null; onChange: 
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="font-semibold">{t.recipe.cover}</span>
+      <span className="field-label">{t.recipe.cover}</span>
+      <div className="flex flex-col gap-4 rounded-2xl border border-dashed border-border p-4 sm:flex-row sm:items-center">
       {mediaId && media?.id === mediaId && media.status === "ready" && media.thumbUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={media.thumbUrl} alt="Cover preview" width={400} height={300} className="w-48 rounded-lg object-cover" />
+        <img src={media.thumbUrl} alt="Cover preview" width={400} height={300} className="aspect-[4/3] w-full rounded-xl object-cover sm:w-56" />
       ) : mediaId ? (
         <p className="text-sm text-muted">{media?.status === "rejected" ? `Photo rejected: ${media.rejectReason ?? ""}` : "Processing photo…"}</p>
-      ) : null}
+      ) : (
+        <span className="grid h-32 w-full place-items-center rounded-xl bg-sunken text-muted sm:aspect-[4/3] sm:h-auto sm:w-56" aria-hidden><Camera size={32} /></span>
+      )}
       <div className="flex flex-wrap gap-2">
-        <label className="btn-ghost cursor-pointer">
+        <label className="btn-ghost cursor-pointer focus-within:outline-3 focus-within:outline-accent">
+          <Camera size={18} aria-hidden />
           Choose photo
           <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
         </label>
-        {mediaId ? <button type="button" className="btn-ghost" onClick={() => onChange(null)}>Remove</button> : null}
+        {mediaId ? <button type="button" className="btn-quiet" onClick={() => onChange(null)}>Remove</button> : null}
+      </div>
       </div>
       {status ? <p role="status" className="text-sm text-muted">{status}</p> : null}
     </div>
@@ -405,18 +413,20 @@ function ConflictDialog({ local, remote, onUseRemote, onKeepLocal, onOverwrite }
     return fields.filter(([, a, b]) => JSON.stringify(a ?? "") !== JSON.stringify(b ?? ""));
   }, [local, remote]);
   return (
-    <section role="alertdialog" aria-labelledby="conflict" className="card flex flex-col gap-3 border-danger">
-      <h2 id="conflict" className="text-xl font-bold">{t.conflict.title}</h2>
+    <section role="alertdialog" aria-labelledby="conflict" className="card flex flex-col gap-4 border-danger/50 bg-danger-soft/40">
+      <h2 id="conflict" className="section-title">{t.conflict.title}</h2>
       <p>{remote.deleted ? "This recipe was deleted on another device." : t.conflict.body}</p>
       {!remote.deleted ? (
+        <div className="overflow-x-auto rounded-xl border border-border bg-surface">
         <table className="w-full text-left text-sm">
-          <thead><tr><th scope="col">Field</th><th scope="col">Your version</th><th scope="col">Server version</th></tr></thead>
+          <thead className="bg-sunken"><tr><th scope="col" className="px-3 py-2">Field</th><th scope="col" className="px-3 py-2">Your version</th><th scope="col" className="px-3 py-2">Server version</th></tr></thead>
           <tbody>
             {diffs.map(([f, a, b]) => (
-              <tr key={f} className="border-t border-border align-top"><th scope="row" className="pr-2">{f}</th><td className="pr-2">{String(a ?? "—")}</td><td>{String(b ?? "—")}</td></tr>
+              <tr key={f} className="border-t border-border align-top"><th scope="row" className="px-3 py-2">{f}</th><td className="px-3 py-2">{String(a ?? "(empty)")}</td><td className="px-3 py-2">{String(b ?? "(empty)")}</td></tr>
             ))}
           </tbody>
         </table>
+        </div>
       ) : null}
       <div className="flex flex-wrap gap-2">
         {!remote.deleted ? <button type="button" className="btn-ghost" onClick={onUseRemote}>{t.conflict.useRemote}</button> : null}
@@ -453,11 +463,11 @@ function CollectionMembership({ recipeId }: { recipeId: string }) {
   }
 
   return (
-    <fieldset className="card">
-      <legend className="px-1 font-bold">Collections</legend>
-      <div className="flex flex-wrap gap-4">
+    <fieldset className="card p-5 sm:p-6">
+      <legend className="float-left mb-3 w-full section-title">Collections</legend>
+      <div className="clear-both flex flex-wrap gap-2">
         {collections.map((c) => (
-          <label key={c.id} className="flex items-center gap-2">
+          <label key={c.id} className="chip min-h-11 cursor-pointer has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:checked]:text-accent-ink">
             <input type="checkbox" checked={c.recipeIds.includes(recipeId)} onChange={(e) => toggle(c, e.target.checked)} />
             {c.name}
           </label>

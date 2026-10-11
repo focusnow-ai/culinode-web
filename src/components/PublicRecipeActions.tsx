@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { CopySimple, Flag, Heart, PencilSimple, Prohibit } from "@phosphor-icons/react/ssr";
 import { ApiError, newId, unwrap } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
 import { problemMessage } from "@/lib/i18n";
@@ -28,12 +29,12 @@ export function PublicRecipeActions({ recipeId, authorId, copyAllowed }: { recip
     };
   }, [user, api, recipeId]);
 
-  if (!ready) return null;
+  if (!ready) return <div className="skeleton h-11 w-64 rounded-full" aria-hidden />;
   if (!user)
     return (
-      <p className="card text-sm">
-        To add favorites, copy to your recipe book and ask questions,{" "}
-        <Link className="font-semibold underline" href={`/sign-in?next=/recipe/${recipeId}`}>sign in</Link>.
+      <p className="text-sm text-muted">
+        <Link className="font-semibold text-accent-ink underline underline-offset-4" href={`/sign-in?next=/recipe/${recipeId}`}>Sign in</Link>{" "}
+        to add favorites, copy to your recipe book and ask questions.
       </p>
     );
   const isAuthor = user.uid === authorId;
@@ -51,31 +52,8 @@ export function PublicRecipeActions({ recipeId, authorId, copyAllowed }: { recip
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-2">
-        {!isAuthor ? (
-          <button
-            type="button"
-            className="btn-ghost"
-            aria-pressed={isFavorite ?? false}
-            disabled={busy !== null || isFavorite === null}
-            onClick={() =>
-              run("fav", async () => {
-                if (isFavorite) {
-                  await unwrap(api.DELETE("/v1/favorites/{recipeId}", { params: { path: { recipeId } } }));
-                  setIsFavorite(false);
-                } else {
-                  await unwrap(api.PUT("/v1/favorites/{recipeId}", { params: { path: { recipeId } } }));
-                  setIsFavorite(true);
-                }
-              })
-            }
-          >
-            {isFavorite ? "★ In favorites" : "☆ Add to favorites"}
-          </button>
-        ) : (
-          <Link className="btn-ghost" href={`/notebook/${recipeId}`}>Edit in my recipes</Link>
-        )}
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         {!isAuthor && copyAllowed ? (
           <button
             type="button"
@@ -91,14 +69,42 @@ export function PublicRecipeActions({ recipeId, authorId, copyAllowed }: { recip
               })
             }
           >
+            <CopySimple size={18} weight="bold" aria-hidden />
             {busy === "copy" ? "Copying…" : "Copy to my recipes"}
           </button>
         ) : null}
         {!isAuthor ? (
+          <button
+            type="button"
+            className={isFavorite ? "btn border-accent bg-accent-soft text-accent-ink" : "btn-ghost"}
+            aria-pressed={isFavorite ?? false}
+            disabled={busy !== null || isFavorite === null}
+            onClick={() =>
+              run("fav", async () => {
+                if (isFavorite) {
+                  await unwrap(api.DELETE("/v1/favorites/{recipeId}", { params: { path: { recipeId } } }));
+                  setIsFavorite(false);
+                } else {
+                  await unwrap(api.PUT("/v1/favorites/{recipeId}", { params: { path: { recipeId } } }));
+                  setIsFavorite(true);
+                }
+              })
+            }
+          >
+            <Heart size={18} weight={isFavorite ? "fill" : "regular"} aria-hidden />
+            {isFavorite ? "In favorites" : "Add to favorites"}
+          </button>
+        ) : (
+          <Link className="btn-ghost" href={`/notebook/${recipeId}`}>
+            <PencilSimple size={18} aria-hidden />
+            Edit in my recipes
+          </Link>
+        )}
+        {!isAuthor ? (
           <>
             <button
               type="button"
-              className="btn-ghost"
+              className="btn-quiet px-3.5 text-muted"
               disabled={busy !== null}
               onClick={() =>
                 run("report", async () => {
@@ -108,11 +114,12 @@ export function PublicRecipeActions({ recipeId, authorId, copyAllowed }: { recip
                 })
               }
             >
+              <Flag size={18} aria-hidden />
               Report
             </button>
             <button
               type="button"
-              className="btn-ghost"
+              className="btn-quiet px-3.5 text-muted"
               disabled={busy !== null}
               onClick={() =>
                 run("block", async () => {
@@ -122,13 +129,14 @@ export function PublicRecipeActions({ recipeId, authorId, copyAllowed }: { recip
                 })
               }
             >
+              <Prohibit size={18} aria-hidden />
               Block
             </button>
           </>
         ) : null}
       </div>
       {message ? (
-        <p role={message.kind === "error" ? "alert" : "status"} className={message.kind === "error" ? "text-danger" : "text-ok"}>
+        <p role={message.kind === "error" ? "alert" : "status"} className={`text-sm font-medium ${message.kind === "error" ? "text-danger" : "text-ok"}`}>
           {message.text}
         </p>
       ) : null}

@@ -1,12 +1,12 @@
 import Link from "next/link";
+import { MagnifyingGlass } from "@phosphor-icons/react/ssr";
+import { StatusPage } from "@/components/StatusPage";
 import { t } from "@/lib/i18n";
 
 export default function NotFound() {
   return (
-    <div className="card flex flex-col items-start gap-3">
-      <h1 className="text-2xl font-bold">Page not found</h1>
-      <p>{t.states.notFound}</p>
-      <Link href="/" className="btn-primary">Home</Link>
-    </div>
+    <StatusPage icon={MagnifyingGlass} title="Page not found" actions={<Link href="/" className="btn-primary">Home</Link>}>
+      {t.states.notFound}
+    </StatusPage>
   );
 }

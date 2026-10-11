@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Empty, ErrorState, Loading } from "@/components/States";
+import { ShieldCheck } from "@phosphor-icons/react/ssr";
+import { Empty, ErrorState, Loading, PageHeader } from "@/components/States";
 import { ApiError, newId, unwrap } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
 import { useAsync } from "@/lib/hooks";
@@ -24,18 +25,22 @@ export default function ModerationPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold">Moderation</h1>
-      {msg ? <p role="status">{msg}</p> : null}
+    <div className="flex max-w-4xl flex-col gap-8">
+      <PageHeader title="Moderation" />
+      {msg ? <p role="status" className="rounded-xl bg-sunken px-4 py-3 font-medium">{msg}</p> : null}
       {reports.state.status === "loading" ? <Loading /> : null}
       {reports.state.status === "error" ? <ErrorState error={reports.state.error} onRetry={reports.reload} /> : null}
       {reports.state.status === "ready" ? (
-        reports.state.data.items.length === 0 ? <Empty>No open reports.</Empty> : (
+        reports.state.data.items.length === 0 ? <Empty icon={ShieldCheck}>No open reports.</Empty> : (
           <ul className="flex flex-col gap-2">
             {reports.state.data.items.map((r) => (
-              <li key={r.id} className="card flex flex-col gap-2">
-                <p><strong>{r.targetType}</strong> · {r.reason} · {formatDate(r.createdAt)}</p>
-                {r.detail ? <p className="text-sm">{r.detail}</p> : null}
+              <li key={r.id} className="card flex flex-col gap-3">
+                <p className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="rounded-full bg-accent-soft px-2.5 py-1 font-semibold capitalize text-accent-ink">{r.targetType}</span>
+                  <span className="rounded-full bg-sunken px-2.5 py-1 font-medium">{r.reason}</span>
+                  <span className="text-muted">{formatDate(r.createdAt)}</span>
+                </p>
+                {r.detail ? <p>{r.detail}</p> : null}
                 <div className="flex flex-wrap gap-2">
                   {r.targetType === "recipe" ? (
                     <>

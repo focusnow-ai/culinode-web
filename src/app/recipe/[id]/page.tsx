@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CookingPot, Timer, Users } from "@phosphor-icons/react/ssr";
 import { PublicRecipeActions } from "@/components/PublicRecipeActions";
 import { DiscussionThread } from "@/components/DiscussionThread";
 import { apiUrl } from "@/lib/api/client";
@@ -30,65 +31,100 @@ export default async function RecipePage({ params }: PageProps<"/recipe/[id]">) 
   const discussions = await getDiscussions(id);
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "");
   const jsonLd = recipeJsonLd(r, siteUrl, r.cover ? apiUrl(r.cover.largeUrl) : null);
+  const stats = [
+    r.prepMinutes ? { icon: Timer, label: "Prep", value: r.prepMinutes, unit: t.recipe.minutes } : null,
+    r.cookMinutes ? { icon: CookingPot, label: "Cook", value: r.cookMinutes, unit: t.recipe.minutes } : null,
+    r.yield?.amount ? { icon: Users, label: t.recipe.yield, value: r.yield.amount, unit: r.yield.unit ?? "" } : null,
+  ].filter((s) => s !== null);
 
   return (
-    <article className="flex flex-col gap-6">
+    <article className="flex flex-col gap-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      <header className="flex flex-col gap-2">
-        <h1 className="font-[family-name:var(--font-display)] text-4xl font-bold">{r.title}</h1>
-        <p className="text-muted">
-          <Link href={`/chef/${encodeURIComponent(r.author.id)}`} className="font-semibold underline-offset-2 hover:underline">
-            {r.author.displayName}
-          </Link>{" "}
-          · {formatDate(r.publishedAt)}
-        </p>
-        {r.description ? <p className="text-lg">{r.description}</p> : null}
-        <dl className="flex flex-wrap gap-4 text-sm">
-          {r.yield?.amount ? (
-            <div><dt className="inline font-semibold">{t.recipe.yield}: </dt><dd className="inline">{r.yield.amount} {r.yield.unit}</dd></div>
+      <header className={`grid gap-8 ${r.cover ? "lg:grid-cols-[1fr_1.15fr] lg:items-center" : ""}`}>
+        <div className="flex flex-col gap-5">
+          <p className="text-muted">
+            <Link href={`/chef/${encodeURIComponent(r.author.id)}`} className="font-semibold text-foreground underline-offset-4 hover:underline">
+              {r.author.displayName}
+            </Link>
+            <span aria-hidden> · </span>
+            {formatDate(r.publishedAt)}
+          </p>
+          <h1 className="max-w-[20ch] font-display text-4xl font-extrabold tracking-tight sm:text-5xl">{r.title}</h1>
+          {r.description ? <p className="max-w-[60ch] text-lg text-muted">{r.description}</p> : null}
+          {stats.length > 0 ? (
+            <dl className="flex flex-wrap gap-3">
+              {stats.map((s) => {
+                const Glyph = s.icon;
+                return (
+                  <div key={s.label} className="flex min-w-28 items-center gap-3 rounded-2xl bg-sunken px-4 py-3">
+                    <Glyph size={22} className="text-accent" aria-hidden />
+                    <div className="flex flex-col leading-tight">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-muted">{s.label}</dt>
+                      <dd className="font-semibold">
+                        <span className="font-mono">{s.value}</span> {s.unit}
+                      </dd>
+                    </div>
+                  </div>
+                );
+              })}
+            </dl>
           ) : null}
-          {r.prepMinutes ? (
-            <div><dt className="inline font-semibold">Prep: </dt><dd className="inline">{r.prepMinutes} {t.recipe.minutes}</dd></div>
-          ) : null}
-          {r.cookMinutes ? (
-            <div><dt className="inline font-semibold">Cook: </dt><dd className="inline">{r.cookMinutes} {t.recipe.minutes}</dd></div>
-          ) : null}
-        </dl>
+          <PublicRecipeActions recipeId={r.id} authorId={r.author.id} copyAllowed={r.copyAllowed} />
+        </div>
+        {r.cover ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={apiUrl(r.cover.largeUrl)}
+            alt={r.title}
+            width={1600}
+            height={1200}
+            fetchPriority="high"
+            className="aspect-[4/3] w-full rounded-3xl object-cover"
+          />
+        ) : null}
       </header>
-      {r.cover ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={apiUrl(r.cover.largeUrl)} alt={r.title} width={1600} height={1200} className="max-h-[60vh] w-full rounded-xl object-cover" />
-      ) : null}
-      <PublicRecipeActions recipeId={r.id} authorId={r.author.id} copyAllowed={r.copyAllowed} />
-      <div className="grid gap-6 md:grid-cols-[1fr_2fr]">
-        <section aria-labelledby="ingredients" className="card">
-          <h2 id="ingredients" className="mb-3 text-2xl font-bold">{t.recipe.ingredients}</h2>
-          <ul className="flex flex-col gap-2">
-            {r.ingredients.map((i) => (
-              <li key={i.id} className="flex flex-col">
-                <span><strong>{formatQuantity(i.quantity)}</strong> {i.name}</span>
-                {i.note ? <span className="text-sm text-muted">{i.note}</span> : null}
+
+      <div className="grid gap-10 md:grid-cols-[minmax(16rem,1fr)_2fr] md:gap-12">
+        <section aria-labelledby="ingredients" className="md:sticky md:top-24 md:self-start">
+          <div className="rounded-2xl bg-sunken p-5 sm:p-6">
+            <h2 id="ingredients" className="section-title mb-4">{t.recipe.ingredients}</h2>
+            <ul className="flex flex-col divide-y divide-border">
+              {r.ingredients.map((i) => (
+                <li key={i.id} className="flex flex-col py-2.5 first:pt-0 last:pb-0">
+                  <span>
+                    <span className="font-mono font-medium text-accent-ink">{formatQuantity(i.quantity)}</span> {i.name}
+                  </span>
+                  {i.note ? <span className="text-sm text-muted">{i.note}</span> : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+        <section aria-labelledby="method">
+          <h2 id="method" className="section-title mb-6">{t.recipe.steps}</h2>
+          <ol className="flex flex-col gap-7">
+            {r.steps.map((s, i) => (
+              <li key={s.id} className="grid grid-cols-[2.5rem_1fr] gap-4">
+                <span className="grid size-10 place-items-center rounded-full border-2 border-accent font-mono font-medium text-accent-ink" aria-hidden>
+                  {i + 1}
+                </span>
+                <p className="pt-1.5 text-lg leading-relaxed">{s.text}</p>
               </li>
             ))}
-          </ul>
-        </section>
-        <section aria-labelledby="method" className="card">
-          <h2 id="method" className="mb-3 text-2xl font-bold">{t.recipe.steps}</h2>
-          <ol className="flex list-decimal flex-col gap-3 pl-6">
-            {r.steps.map((s) => (
-              <li key={s.id} className="text-lg">{s.text}</li>
-            ))}
           </ol>
+          {r.tags.length > 0 ? (
+            <ul className="mt-10 flex flex-wrap gap-2" aria-label={t.recipe.tags}>
+              {r.tags.map((tag) => (
+                <li key={tag}><Link className="chip" href={`/?tag=${encodeURIComponent(tag)}`}>#{tag}</Link></li>
+              ))}
+            </ul>
+          ) : null}
         </section>
       </div>
-      {r.tags.length > 0 ? (
-        <ul className="flex flex-wrap gap-2" aria-label={t.recipe.tags}>
-          {r.tags.map((t) => (
-            <li key={t}><Link className="rounded-full border border-border px-3 py-1" href={`/?tag=${encodeURIComponent(t)}`}>#{t}</Link></li>
-          ))}
-        </ul>
-      ) : null}
-      <DiscussionThread recipeId={r.id} authorId={r.author.id} initial={discussions.items} initialContinuation={discussions.continuation ?? null} />
+
+      <div className="border-t border-border pt-10">
+        <DiscussionThread recipeId={r.id} authorId={r.author.id} initial={discussions.items} initialContinuation={discussions.continuation ?? null} />
+      </div>
     </article>
   );
 }
